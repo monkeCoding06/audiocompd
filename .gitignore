@@ -1,0 +1,10 @@
+*
+!config/*
+!README.md
+!src/*
+!CMakeLists.txt
+!packaging/*
+!schema/*
+!tests/*
+!.gitignore
+!cmake/*
