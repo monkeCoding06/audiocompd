@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+    <xs:simpleType name="sampleRateType">
+        <xs:restriction base="xs:positiveInteger">
+            <xs:minInclusive value="8000"/>
+            <xs:maxInclusive value="384000"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="channelCountType">
+        <xs:restriction base="xs:positiveInteger">
+            <xs:minInclusive value="1"/>
+            <xs:maxInclusive value="64"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="periodFramesType">
+        <xs:restriction base="xs:positiveInteger">
+            <xs:minInclusive value="16"/>
+            <xs:maxInclusive value="8192"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="periodCountType">
+        <xs:restriction base="xs:positiveInteger">
+            <xs:minInclusive value="2"/>
+            <xs:maxInclusive value="16"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="thresholdType">
+        <xs:restriction base="xs:decimal">
+            <xs:minInclusive value="-96"/>
+            <xs:maxInclusive value="0"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="ratioType">
+        <xs:restriction base="xs:decimal">
+            <xs:minInclusive value="1"/>
+            <xs:maxInclusive value="100"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="timeType">
+        <xs:restriction base="xs:decimal">
+            <xs:minInclusive value="0"/>
+            <xs:maxInclusive value="10000"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="kneeType">
+        <xs:restriction base="xs:decimal">
+            <xs:minInclusive value="0"/>
+            <xs:maxInclusive value="48"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="gainType">
+        <xs:restriction base="xs:decimal">
+            <xs:minInclusive value="-48"/>
+            <xs:maxInclusive value="48"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="logLevelType">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="debug"/>
+            <xs:enumeration value="info"/>
+            <xs:enumeration value="warning"/>
+            <xs:enumeration value="error"/>
+            <xs:enumeration value="critical"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="nonEmptyStringType">
+        <xs:restriction base="xs:string">
+            <xs:minLength value="1"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:complexType name="alsaType">
+        <xs:sequence>
+            <xs:element name="inputDevice" type="nonEmptyStringType"/>
+            <xs:element name="outputDevice" type="nonEmptyStringType"/>
+            <xs:element name="sampleRate" type="sampleRateType"/>
+            <xs:element name="channels" type="channelCountType"/>
+            <xs:element name="periodFrames" type="periodFramesType"/>
+            <xs:element name="periods" type="periodCountType"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="jackType">
+        <xs:sequence>
+            <xs:element name="clientName" type="nonEmptyStringType"/>
+            <xs:element name="channels" type="channelCountType"/>
+            <xs:element name="autoConnect" type="xs:boolean"/>
+            <xs:element name="inputPort" type="nonEmptyStringType" minOccurs="0" maxOccurs="64"/>
+            <xs:element name="outputPort" type="nonEmptyStringType" minOccurs="0" maxOccurs="64"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="backendType">
+        <xs:choice>
+            <xs:element name="alsa" type="alsaType"/>
+            <xs:element name="jack" type="jackType"/>
+        </xs:choice>
+    </xs:complexType>
+
+    <xs:complexType name="compressorType">
+        <xs:sequence>
+            <xs:element name="thresholdDb" type="thresholdType"/>
+            <xs:element name="ratio" type="ratioType"/>
+            <xs:element name="attackMs" type="timeType"/>
+            <xs:element name="releaseMs" type="timeType"/>
+            <xs:element name="kneeDb" type="kneeType"/>
+            <xs:element name="makeupGainDb" type="gainType"/>
+        </xs:sequence>
+        <xs:attribute name="enabled" type="xs:boolean" use="required"/>
+    </xs:complexType>
+
+    <xs:complexType name="loggingType">
+        <xs:sequence>
+            <xs:element name="level" type="logLevelType"/>
+            <xs:element name="filePath" type="xs:string" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:element name="audiocompd">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="audio">
+                    <xs:complexType>
+                        <xs:sequence>
+                            <xs:element name="backend" type="backendType"/>
+                        </xs:sequence>
+                    </xs:complexType>
+                </xs:element>
+                <xs:element name="compressor" type="compressorType"/>
+                <xs:element name="logging" type="loggingType"/>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+</xs:schema>

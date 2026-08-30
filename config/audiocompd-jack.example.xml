@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<audiocompd xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:noNamespaceSchemaLocation="../schema/audiocompd.xsd">
+    <audio>
+        <backend>
+            <jack>
+                <clientName>audiocompd</clientName>
+                <channels>2</channels>
+                <autoConnect>true</autoConnect>
+            </jack>
+        </backend>
+    </audio>
+
+    <compressor enabled="true">
+        <thresholdDb>-18.0</thresholdDb>
+        <ratio>4.0</ratio>
+        <attackMs>10.0</attackMs>
+        <releaseMs>100.0</releaseMs>
+        <kneeDb>6.0</kneeDb>
+        <makeupGainDb>0.0</makeupGainDb>
+    </compressor>
+
+    <logging>
+        <level>info</level>
+    </logging>
+</audiocompd>
+
