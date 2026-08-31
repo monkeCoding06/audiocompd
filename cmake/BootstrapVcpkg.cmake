@@ -1,6 +1,3 @@
-set(AUDIOCOMPD_VCPKG_COMMIT
-    "9e593bb18ea69cc5095e012465dcd675a822ed0d")
-
 function(_audiocompd_read_vcpkg_metadata metadata_file variable output_variable)
     file(STRINGS "${metadata_file}" metadata_line
         REGEX "^${variable}=")
@@ -20,14 +17,33 @@ function(audiocompd_bootstrap_vcpkg source_directory)
             "audiocompd and its automatically fetched audio backends require Linux")
     endif()
 
+    set(vcpkg_manifest "${source_directory}/vcpkg.json")
+    if(NOT EXISTS "${vcpkg_manifest}")
+        message(FATAL_ERROR
+            "The vcpkg manifest does not exist: ${vcpkg_manifest}")
+    endif()
+
+    file(READ "${vcpkg_manifest}" vcpkg_manifest_json)
+    string(JSON vcpkg_commit
+        ERROR_VARIABLE vcpkg_json_error
+        GET "${vcpkg_manifest_json}" builtin-baseline)
+    string(LENGTH "${vcpkg_commit}" vcpkg_commit_length)
+    if(NOT vcpkg_json_error STREQUAL "NOTFOUND"
+       OR NOT vcpkg_commit_length EQUAL 40
+       OR NOT vcpkg_commit MATCHES "^[0-9A-Fa-f]+$")
+        message(FATAL_ERROR
+            "vcpkg.json must contain a valid 40-character builtin-baseline")
+    endif()
+    string(TOLOWER "${vcpkg_commit}" vcpkg_commit)
+
     set(vcpkg_download_directory "${CMAKE_BINARY_DIR}/_deps/downloads")
     set(vcpkg_root "${CMAKE_BINARY_DIR}/_deps/vcpkg")
     set(vcpkg_toolchain "${vcpkg_root}/scripts/buildsystems/vcpkg.cmake")
     set(vcpkg_executable "${vcpkg_root}/vcpkg")
     set(vcpkg_archive
-        "${vcpkg_download_directory}/vcpkg-${AUDIOCOMPD_VCPKG_COMMIT}.tar.gz")
+        "${vcpkg_download_directory}/vcpkg-${vcpkg_commit}.tar.gz")
     set(vcpkg_extracted_directory
-        "${CMAKE_BINARY_DIR}/_deps/vcpkg-${AUDIOCOMPD_VCPKG_COMMIT}")
+        "${CMAKE_BINARY_DIR}/_deps/vcpkg-${vcpkg_commit}")
 
     if(DEFINED CMAKE_TOOLCHAIN_FILE
        AND NOT "${CMAKE_TOOLCHAIN_FILE}" STREQUAL ""
@@ -43,9 +59,9 @@ function(audiocompd_bootstrap_vcpkg source_directory)
 
         if(NOT EXISTS "${vcpkg_archive}")
             message(STATUS
-                "Downloading pinned vcpkg ${AUDIOCOMPD_VCPKG_COMMIT}")
+                "Downloading pinned vcpkg ${vcpkg_commit}")
             file(DOWNLOAD
-                "https://github.com/microsoft/vcpkg/archive/${AUDIOCOMPD_VCPKG_COMMIT}.tar.gz"
+                "https://github.com/microsoft/vcpkg/archive/${vcpkg_commit}.tar.gz"
                 "${vcpkg_archive}.part"
                 STATUS download_status
                 TLS_VERIFY ON
@@ -76,7 +92,21 @@ function(audiocompd_bootstrap_vcpkg source_directory)
         _audiocompd_read_vcpkg_metadata(
             "${vcpkg_metadata}" VCPKG_TOOL_RELEASE_TAG vcpkg_tool_release)
 
-        string(TOLOWER "${CMAKE_HOST_SYSTEM_PROCESSOR}" host_processor)
+        set(host_processor "${CMAKE_HOST_SYSTEM_PROCESSOR}")
+        if(host_processor STREQUAL "")
+            execute_process(
+                COMMAND uname -m
+                RESULT_VARIABLE uname_result
+                OUTPUT_VARIABLE host_processor
+                OUTPUT_STRIP_TRAILING_WHITESPACE
+                ERROR_QUIET)
+            if(NOT uname_result EQUAL 0 OR host_processor STREQUAL "")
+                message(FATAL_ERROR
+                    "Could not determine the Linux host architecture")
+            endif()
+        endif()
+
+        string(TOLOWER "${host_processor}" host_processor)
         if(host_processor MATCHES "^(x86_64|amd64)$")
             set(vcpkg_tool_name "vcpkg-glibc")
             set(vcpkg_hash_variable "VCPKG_GLIBC_SHA")
@@ -86,7 +116,7 @@ function(audiocompd_bootstrap_vcpkg source_directory)
         else()
             message(FATAL_ERROR
                 "Automatic vcpkg bootstrapping supports Linux x86_64 and arm64; "
-                "the detected architecture is ${CMAKE_HOST_SYSTEM_PROCESSOR}")
+                "the detected architecture is ${host_processor}")
         endif()
 
         _audiocompd_read_vcpkg_metadata(
@@ -127,4 +157,3 @@ function(audiocompd_bootstrap_vcpkg source_directory)
         "Private vcpkg instance bootstrapped by audiocompd" FORCE)
     set(VCPKG_ROOT "${vcpkg_root}" PARENT_SCOPE)
 endfunction()
-
