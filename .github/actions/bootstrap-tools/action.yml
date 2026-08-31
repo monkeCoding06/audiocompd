@@ -1,5 +1,5 @@
 name: Bootstrap host tools
-description: Provide vcpkg host tools without requiring root access
+description: Provide native host-tool executables without requiring root access
 
 runs:
   using: composite
@@ -25,17 +25,17 @@ runs:
       if: steps.tools.outputs.missing == 'true'
       uses: pkgxdev/setup@4d4ae97af87ccb39ab8be4e073dea697fef2c6f7
 
-    - name: Create isolated tool wrappers
+    - name: Link native pkgx executables
       if: steps.tools.outputs.missing == 'true'
       shell: bash
       run: |
         set -euo pipefail
 
-        tools_directory="$RUNNER_TEMP/audiocompd-tools"
+        tools_directory="$RUNNER_TEMP/audiocompd-tools-v2"
         cmake -E remove_directory "$tools_directory"
         cmake -E make_directory "$tools_directory"
 
-        create_wrapper() {
+        link_tool() {
           local command_name="$1"
           local package_name="$2"
 
@@ -43,31 +43,25 @@ runs:
             return
           fi
 
-          printf '%s\n' \
-            '#!/usr/bin/env bash' \
-            'set -euo pipefail' \
-            "exec pkgx --quiet +$package_name -- $command_name \"\$@\"" \
-            > "$tools_directory/$command_name"
-          chmod +x "$tools_directory/$command_name"
+          local executable
+          executable="$(
+            pkgx --quiet "+$package_name" -- \
+              /bin/sh -c "command -v '$command_name'"
+          )"
+
+          if [[ -z "$executable" || ! -x "$executable" ]]; then
+            echo "::error::pkgx did not provide an executable for $command_name"
+            exit 1
+          fi
+
+          ln -s "$executable" "$tools_directory/$command_name"
+          echo "$command_name: $executable"
         }
 
-        create_wrapper git git-scm.org
-        create_wrapper zip info-zip.org/zip
-        create_wrapper unzip info-zip.org/unzip
-
-        if ! command -v pkg-config >/dev/null 2>&1; then
-          cat > "$tools_directory/pkg-config" <<'WRAPPER'
-        #!/usr/bin/env bash
-        set -euo pipefail
-
-        exec pkgx --quiet +freedesktop.org/pkg-config -- /usr/bin/env \
-          "PKG_CONFIG_PATH=${PKG_CONFIG_PATH-}" \
-          "PKG_CONFIG_LIBDIR=${PKG_CONFIG_LIBDIR-}" \
-          "PKG_CONFIG_SYSROOT_DIR=${PKG_CONFIG_SYSROOT_DIR-}" \
-          pkg-config "$@"
-        WRAPPER
-          chmod +x "$tools_directory/pkg-config"
-        fi
+        link_tool git git-scm.org
+        link_tool zip info-zip.org/zip
+        link_tool unzip info-zip.org/unzip
+        link_tool pkg-config freedesktop.org/pkg-config
 
         echo "$tools_directory" >> "$GITHUB_PATH"
 
@@ -77,7 +71,13 @@ runs:
         set -euo pipefail
 
         for tool in git zip unzip pkg-config; do
-          command -v "$tool"
+          executable="$(command -v "$tool")"
+          echo "$tool: $executable"
+
+          if [[ ! -x "$executable" ]]; then
+            echo "::error::$tool is not an executable file"
+            exit 1
+          fi
         done
 
         git --version
