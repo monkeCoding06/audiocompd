@@ -57,11 +57,7 @@ jobs:
         if: steps.bootstrap_tools.outputs.install == 'true'
         uses: pkgxdev/setup@4d4ae97af87ccb39ab8be4e073dea697fef2c6f7
         with:
-          +: |
-            git
-            zip
-            unzip
-            pkg-config
+          +: git zip unzip pkg-config
 
       - name: Restore dependency cache
         uses: actions/cache@v4
@@ -147,11 +143,7 @@ jobs:
         if: steps.bootstrap_tools.outputs.install == 'true'
         uses: pkgxdev/setup@4d4ae97af87ccb39ab8be4e073dea697fef2c6f7
         with:
-          +: |
-            git
-            zip
-            unzip
-            pkg-config
+          +: git zip unzip pkg-config
 
       - name: Restore dependency cache
         uses: actions/cache@v4
@@ -241,11 +233,7 @@ jobs:
         if: steps.bootstrap_tools.outputs.install == 'true'
         uses: pkgxdev/setup@4d4ae97af87ccb39ab8be4e073dea697fef2c6f7
         with:
-          +: |
-            git
-            zip
-            unzip
-            pkg-config
+          +: git zip unzip pkg-config
 
       - name: Restore dependency cache
         uses: actions/cache@v4
