@@ -8,13 +8,14 @@ the audio server, and native ALSA and JACK backends are also available.
 
 The project intentionally produces two executables:
 
-- `audiocompd` the self-contained unit-test executable
+- `audiocompd` — the service application
+- `unit_test` — the self-contained unit-test executable
 
 ## Current features
 
 - PipeWire virtual sink for system-wide desktop playback compression
 - Explicit PipeWire target sink, preventing the processed stream from feeding
- back into the virtual sink
+  back into the virtual sink
 - ALSA full-duplex capture and playback
 - JACK client with optional physical-port auto-connect
 - Stereo-linked soft-knee compressor
@@ -39,7 +40,7 @@ On Debian or Ubuntu the development packages are commonly installed with:
 
 ```bash
 sudo apt install build-essential cmake ninja-build pkg-config \
-   libxml2-dev libasound2-dev libjack-jackd2-dev libpipewire-0.3-dev
+    libxml2-dev libasound2-dev libjack-jackd2-dev libpipewire-0.3-dev
 ```
 
 ## Build and test
@@ -54,9 +55,9 @@ Backends can be disabled independently:
 
 ```bash
 cmake -S . -B build -G Ninja \
-   -DAUDIOCOMPD_WITH_ALSA=ON \
-   -DAUDIOCOMPD_WITH_JACK=OFF \
-   -DAUDIOCOMPD_WITH_PIPEWIRE=ON
+    -DAUDIOCOMPD_WITH_ALSA=ON \
+    -DAUDIOCOMPD_WITH_JACK=OFF \
+    -DAUDIOCOMPD_WITH_PIPEWIRE=ON
 ```
 
 Disabling a backend removes its external dependency. At least one usable
@@ -68,17 +69,17 @@ Validate the example configuration without opening an audio device:
 
 ```bash
 ./build/audiocompd \
-   --config config/audiocompd.xml \
-   --schema schema/audiocompd.xsd \
-   --validate-config
+    --config config/audiocompd.xml \
+    --schema schema/audiocompd.xsd \
+    --validate-config
 ```
 
 Run with the PipeWire virtual-sink example:
 
 ```bash
 ./build/audiocompd \
-   --config config/audiocompd.xml \
-   --schema schema/audiocompd.xsd
+    --config config/audiocompd.xml \
+    --schema schema/audiocompd.xsd
 ```
 
 While it is running, `wpctl status` should show an output named
@@ -115,14 +116,14 @@ The standard installed paths are:
 
 ```xml
 <backend>
-   <pipewire>
-       <nodeName>audiocompd</nodeName>
-       <nodeDescription>audiocompd Compressed Output</nodeDescription>
-       <targetSink>alsa_output.pci-0000_0a_00.4.analog-stereo</targetSink>
-       <sampleRate>48000</sampleRate>
-       <channels>2</channels>
-       <quantum>256</quantum>
-   </pipewire>
+    <pipewire>
+        <nodeName>audiocompd</nodeName>
+        <nodeDescription>audiocompd Compressed Output</nodeDescription>
+        <targetSink>alsa_output.pci-0000_0a_00.4.analog-stereo</targetSink>
+        <sampleRate>48000</sampleRate>
+        <channels>2</channels>
+        <quantum>256</quantum>
+    </pipewire>
 </backend>
 ```
 
@@ -143,14 +144,14 @@ at its PipeWire boundary.
 
 ```xml
 <backend>
-   <alsa>
-       <inputDevice>default</inputDevice>
-       <outputDevice>default</outputDevice>
-       <sampleRate>48000</sampleRate>
-       <channels>2</channels>
-       <periodFrames>256</periodFrames>
-       <periods>4</periods>
-   </alsa>
+    <alsa>
+        <inputDevice>default</inputDevice>
+        <outputDevice>default</outputDevice>
+        <sampleRate>48000</sampleRate>
+        <channels>2</channels>
+        <periodFrames>256</periodFrames>
+        <periods>4</periods>
+    </alsa>
 </backend>
 ```
 
@@ -161,11 +162,11 @@ backend-neutral planar floating-point representation used by the DSP.
 
 ```xml
 <backend>
-   <jack>
-       <clientName>audiocompd</clientName>
-       <channels>2</channels>
-       <autoConnect>true</autoConnect>
-   </jack>
+    <jack>
+        <clientName>audiocompd</clientName>
+        <channels>2</channels>
+        <autoConnect>true</autoConnect>
+    </jack>
 </backend>
 ```
 
@@ -181,12 +182,12 @@ of its XML configuration.
 
 ```xml
 <compressor enabled="true">
-   <thresholdDb>-18.0</thresholdDb>
-   <ratio>4.0</ratio>
-   <attackMs>10.0</attackMs>
-   <releaseMs>100.0</releaseMs>
-   <kneeDb>6.0</kneeDb>
-   <makeupGainDb>0.0</makeupGainDb>
+    <thresholdDb>-18.0</thresholdDb>
+    <ratio>4.0</ratio>
+    <attackMs>10.0</attackMs>
+    <releaseMs>100.0</releaseMs>
+    <kneeDb>6.0</kneeDb>
+    <makeupGainDb>0.0</makeupGainDb>
 </compressor>
 ```
 
@@ -198,7 +199,7 @@ independently.
 
 ```xml
 <logging>
-   <level>info</level>
+    <level>info</level>
 </logging>
 ```
 
@@ -253,3 +254,4 @@ tests              hardware-independent unit tests
 No logging, allocation, file access, or locking occurs inside the successful
 real-time processing path. Buffer storage is allocated before processing
 begins.
+

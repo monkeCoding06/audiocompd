@@ -1,0 +1,291 @@
+name: C++ CI
+
+on:
+  push:
+    branches:
+      - "**"
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      build_packages:
+        description: Build RPM and DEB artifacts for the selected branch
+        required: true
+        default: true
+        type: boolean
+
+concurrency:
+  group: audiocompd-ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_type == 'branch' }}
+
+jobs:
+  build:
+    name: Build and Unit Tests
+    runs-on: [self-hosted, Linux, X64]
+
+    defaults:
+      run:
+        shell: bash
+
+    env:
+      VCPKG_DEFAULT_BINARY_CACHE: ${{ runner.temp }}/audiocompd-vcpkg-cache
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore dependency cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ runner.temp }}/audiocompd-vcpkg-cache
+            build/_deps/vcpkg
+          key: audiocompd-${{ runner.os }}-${{ runner.arch }}-vcpkg-${{ hashFiles('vcpkg.json', 'cmake/BootstrapVcpkg.cmake') }}
+
+      - name: Check build tools
+        run: |
+          missing=0
+
+          for tool in cmake ninja gcc g++; do
+            if command -v "$tool" >/dev/null 2>&1; then
+              echo "$tool: $(command -v "$tool")"
+            else
+              echo "::error::$tool is not installed or not available in PATH"
+              missing=1
+            fi
+          done
+
+          exit "$missing"
+
+      - name: Configure
+        run: |
+          cmake -E make_directory "$VCPKG_DEFAULT_BINARY_CACHE"
+
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TESTING=ON
+
+      - name: Build unit tests
+        run: |
+          cmake --build build \
+            --target unit_test \
+            --parallel "$(nproc)"
+
+      - name: Run unit tests
+        run: |
+          ctest \
+            --test-dir build \
+            --tests-regex '^unit_test$' \
+            --output-on-failure \
+            --no-tests=error
+
+  clang-tidy:
+    name: Clang-Tidy
+    needs: build
+    runs-on: [self-hosted, Linux, X64]
+
+    defaults:
+      run:
+        shell: bash
+
+    env:
+      VCPKG_DEFAULT_BINARY_CACHE: ${{ runner.temp }}/audiocompd-vcpkg-cache
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore dependency cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ runner.temp }}/audiocompd-vcpkg-cache
+            build/_deps/vcpkg
+          key: audiocompd-${{ runner.os }}-${{ runner.arch }}-vcpkg-${{ hashFiles('vcpkg.json', 'cmake/BootstrapVcpkg.cmake') }}
+
+      - name: Check analysis tools
+        run: |
+          missing=0
+
+          for tool in cmake ninja gcc g++ clang-tidy run-clang-tidy; do
+            if command -v "$tool" >/dev/null 2>&1; then
+              echo "$tool: $(command -v "$tool")"
+            else
+              echo "::error::$tool is not installed or not available in PATH"
+              missing=1
+            fi
+          done
+
+          exit "$missing"
+
+      - name: Configure compile database
+        run: |
+          cmake -E make_directory "$VCPKG_DEFAULT_BINARY_CACHE"
+
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DBUILD_TESTING=ON
+
+      - name: Run clang-tidy
+        run: |
+          run-clang-tidy \
+            -p build \
+            -j "$(nproc)" \
+            -header-filter='^.*/src/.*' \
+            -quiet \
+            '.*/src/.*\.cpp$'
+
+  package:
+    name: Build RPM and DEB Packages
+    needs: [build, clang-tidy]
+    if: >-
+      github.ref_type == 'tag' ||
+      (github.event_name == 'push' && github.ref_name == 'main') ||
+      (github.event_name == 'workflow_dispatch' && inputs.build_packages)
+
+    runs-on: [self-hosted, Linux, X64]
+
+    permissions:
+      contents: write
+
+    defaults:
+      run:
+        shell: bash
+
+    env:
+      VCPKG_DEFAULT_BINARY_CACHE: ${{ runner.temp }}/audiocompd-vcpkg-cache
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore dependency cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ runner.temp }}/audiocompd-vcpkg-cache
+            build/_deps/vcpkg
+          key: audiocompd-${{ runner.os }}-${{ runner.arch }}-vcpkg-${{ hashFiles('vcpkg.json', 'cmake/BootstrapVcpkg.cmake') }}
+
+      - name: Prepare package metadata
+        id: package_metadata
+        run: |
+          set -euo pipefail
+
+          safe_ref="${GITHUB_REF_NAME//[^A-Za-z0-9._-]/_}"
+          project_version="$(sed -nE \
+            's/^project\(audiocompd VERSION ([0-9]+\.[0-9]+\.[0-9]+).*/\1/p' \
+            CMakeLists.txt)"
+
+          if [[ -z "$project_version" ]]; then
+            echo "::error::Could not read the project version from CMakeLists.txt"
+            exit 1
+          fi
+
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            if [[ ! "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "::error::Release tags must use the format v1.2.3"
+              exit 1
+            fi
+
+            tag_version="${GITHUB_REF_NAME#v}"
+            if [[ "$tag_version" != "$project_version" ]]; then
+              echo "::error::Tag version $tag_version does not match CMake project version $project_version"
+              exit 1
+            fi
+
+            channel="release"
+            package_release="1"
+          elif [[ "$GITHUB_REF_NAME" == "main" ]]; then
+            channel="development"
+            package_release="0.${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}"
+          else
+            channel="manual"
+            package_release="0.${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}"
+          fi
+
+          echo "ref=$safe_ref" >> "$GITHUB_OUTPUT"
+          echo "version=$project_version" >> "$GITHUB_OUTPUT"
+          echo "release=$package_release" >> "$GITHUB_OUTPUT"
+          echo "channel=$channel" >> "$GITHUB_OUTPUT"
+
+          echo "Package channel: $channel"
+          echo "Package version: $project_version-$package_release"
+
+      - name: Check packaging tools
+        run: |
+          missing=0
+
+          for tool in cmake cpack ninja gcc g++ rpmbuild; do
+            if command -v "$tool" >/dev/null 2>&1; then
+              echo "$tool: $(command -v "$tool")"
+            else
+              echo "::error::$tool is not installed or not available in PATH"
+              missing=1
+            fi
+          done
+
+          exit "$missing"
+
+      - name: Configure package build
+        run: |
+          cmake -E make_directory "$VCPKG_DEFAULT_BINARY_CACHE"
+
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TESTING=OFF \
+            -DCPACK_RPM_PACKAGE_RELEASE="${{ steps.package_metadata.outputs.release }}" \
+            -DCPACK_DEBIAN_PACKAGE_RELEASE="${{ steps.package_metadata.outputs.release }}"
+
+      - name: Build application
+        run: |
+          cmake --build build \
+            --target audiocompd \
+            --parallel "$(nproc)"
+
+      - name: Build RPM package
+        run: |
+          cpack \
+            --config build/CPackConfig.cmake \
+            -G RPM \
+            -B build/packages/rpm
+
+      - name: Build DEB package
+        run: |
+          cpack \
+            --config build/CPackConfig.cmake \
+            -G DEB \
+            -B build/packages/deb
+
+      - name: Create package checksums
+        run: |
+          set -euo pipefail
+
+          cd build/packages
+          find rpm deb -type f \( -name '*.rpm' -o -name '*.deb' \) \
+            -print0 \
+            | sort -z \
+            | xargs -0 sha256sum > SHA256SUMS
+
+          cat SHA256SUMS
+
+      - name: Upload packages as workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: audiocompd-${{ steps.package_metadata.outputs.channel }}-${{ steps.package_metadata.outputs.ref }}-${{ github.run_number }}
+          path: |
+            build/packages/rpm/*.rpm
+            build/packages/deb/*.deb
+            build/packages/SHA256SUMS
+          if-no-files-found: error
+
+      - name: Create GitHub release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v3
+        with:
+          name: audiocompd ${{ github.ref_name }}
+          files: |
+            build/packages/rpm/*.rpm
+            build/packages/deb/*.deb
+            build/packages/SHA256SUMS
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+
