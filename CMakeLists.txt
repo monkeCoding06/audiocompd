@@ -1,10 +1,33 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(audiocompd VERSION 0.1.0 LANGUAGES CXX)
-
+option(AUDIOCOMPD_FETCH_DEPENDENCIES
+    "Download and build third-party dependencies with vcpkg" ON)
 option(AUDIOCOMPD_WITH_ALSA "Build the ALSA backend" ON)
 option(AUDIOCOMPD_WITH_JACK "Build the JACK backend" ON)
 option(AUDIOCOMPD_WITH_PIPEWIRE "Build the PipeWire virtual-sink backend" ON)
+
+if(AUDIOCOMPD_FETCH_DEPENDENCIES)
+    include(cmake/BootstrapVcpkg.cmake)
+    audiocompd_bootstrap_vcpkg("${CMAKE_CURRENT_LIST_DIR}")
+
+    set(_audiocompd_vcpkg_features "")
+    if(AUDIOCOMPD_WITH_ALSA)
+        list(APPEND _audiocompd_vcpkg_features alsa)
+    endif()
+    if(AUDIOCOMPD_WITH_JACK)
+        list(APPEND _audiocompd_vcpkg_features jack)
+    endif()
+    if(AUDIOCOMPD_WITH_PIPEWIRE)
+        list(APPEND _audiocompd_vcpkg_features pipewire)
+    endif()
+
+    set(VCPKG_MANIFEST_FEATURES "${_audiocompd_vcpkg_features}" CACHE STRING
+        "vcpkg features selected from the enabled audiocompd backends" FORCE)
+    set(VCPKG_MANIFEST_NO_DEFAULT_FEATURES ON CACHE BOOL
+        "Only install dependencies for enabled audiocompd backends" FORCE)
+endif()
+
+project(audiocompd VERSION 0.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -32,25 +55,62 @@ set(AUDIOCOMPD_SOURCES
 set(AUDIOCOMPD_BACKEND_LIBRARIES "")
 
 if(AUDIOCOMPD_WITH_ALSA OR AUDIOCOMPD_WITH_JACK OR AUDIOCOMPD_WITH_PIPEWIRE)
+    if(AUDIOCOMPD_FETCH_DEPENDENCIES)
+        set(_audiocompd_vcpkg_installed "${VCPKG_INSTALLED_DIR}")
+        if(_audiocompd_vcpkg_installed STREQUAL "")
+            set(_audiocompd_vcpkg_installed "${CMAKE_BINARY_DIR}/vcpkg_installed")
+        endif()
+
+        file(GLOB _audiocompd_pkgconf_candidates LIST_DIRECTORIES false
+            "${_audiocompd_vcpkg_installed}/*/tools/pkgconf/pkgconf")
+        if(NOT _audiocompd_pkgconf_candidates)
+            message(FATAL_ERROR
+                "vcpkg installed pkgconf, but its executable could not be found")
+        endif()
+        list(GET _audiocompd_pkgconf_candidates 0 _audiocompd_pkgconf)
+        set(PKG_CONFIG_EXECUTABLE "${_audiocompd_pkgconf}" CACHE FILEPATH
+            "pkgconf executable fetched by vcpkg" FORCE)
+    endif()
+
     find_package(PkgConfig REQUIRED)
 endif()
 
+function(audiocompd_add_pkg_dependency target prefix module)
+    if(AUDIOCOMPD_FETCH_DEPENDENCIES)
+        pkg_check_modules(${prefix} REQUIRED ${module})
+        add_library(${target} INTERFACE)
+        target_include_directories(${target} SYSTEM INTERFACE
+            ${${prefix}_STATIC_INCLUDE_DIRS})
+        target_link_directories(${target} INTERFACE
+            ${${prefix}_STATIC_LIBRARY_DIRS})
+        target_link_libraries(${target} INTERFACE
+            ${${prefix}_STATIC_LINK_LIBRARIES})
+        target_compile_options(${target} INTERFACE
+            ${${prefix}_STATIC_CFLAGS_OTHER})
+        target_link_options(${target} INTERFACE
+            ${${prefix}_STATIC_LDFLAGS_OTHER})
+    else()
+        pkg_check_modules(${prefix} REQUIRED IMPORTED_TARGET ${module})
+        add_library(${target} ALIAS PkgConfig::${prefix})
+    endif()
+endfunction()
+
 if(AUDIOCOMPD_WITH_PIPEWIRE)
-    pkg_check_modules(PIPEWIRE REQUIRED IMPORTED_TARGET libpipewire-0.3)
+    audiocompd_add_pkg_dependency(audiocompd_pipewire PIPEWIRE libpipewire-0.3)
     list(APPEND AUDIOCOMPD_SOURCES src/audio/backends/pipewire/PipeWireBackend.cpp)
-    list(APPEND AUDIOCOMPD_BACKEND_LIBRARIES PkgConfig::PIPEWIRE)
+    list(APPEND AUDIOCOMPD_BACKEND_LIBRARIES audiocompd_pipewire)
 endif()
 
 if(AUDIOCOMPD_WITH_ALSA)
-    pkg_check_modules(ALSA REQUIRED IMPORTED_TARGET alsa)
+    audiocompd_add_pkg_dependency(audiocompd_alsa ALSA alsa)
     list(APPEND AUDIOCOMPD_SOURCES src/audio/backends/alsa/AlsaBackend.cpp)
-    list(APPEND AUDIOCOMPD_BACKEND_LIBRARIES PkgConfig::ALSA)
+    list(APPEND AUDIOCOMPD_BACKEND_LIBRARIES audiocompd_alsa)
 endif()
 
 if(AUDIOCOMPD_WITH_JACK)
-    pkg_check_modules(JACK REQUIRED IMPORTED_TARGET jack)
+    audiocompd_add_pkg_dependency(audiocompd_jack JACK jack)
     list(APPEND AUDIOCOMPD_SOURCES src/audio/backends/jack/JackBackend.cpp)
-    list(APPEND AUDIOCOMPD_BACKEND_LIBRARIES PkgConfig::JACK)
+    list(APPEND AUDIOCOMPD_BACKEND_LIBRARIES audiocompd_jack)
 endif()
 
 function(configure_audiocompd_target target)
@@ -69,26 +129,27 @@ function(configure_audiocompd_target target)
     audiocompd_enable_warnings(${target})
 endfunction()
 
-# The project intentionally has exactly two executable targets.
 add_executable(audiocompd src/main.cpp ${AUDIOCOMPD_SOURCES})
 configure_audiocompd_target(audiocompd)
 
-add_executable(unit_test
-    tests/main.cpp
-    tests/audio/AudioEngineTest.cpp
-    tests/compressor/CompressorTest.cpp
-    tests/compressor/EnvelopeFollowerTest.cpp
-    tests/config/ConfigTest.cpp
-    tests/logging/LoggerTest.cpp
-    ${AUDIOCOMPD_SOURCES}
-)
-configure_audiocompd_target(unit_test)
-target_include_directories(unit_test PRIVATE tests)
-target_compile_definitions(unit_test PRIVATE
-    AUDIOCOMPD_TEST_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
-)
+if(BUILD_TESTING)
+    add_executable(unit_test
+        tests/main.cpp
+        tests/audio/AudioEngineTest.cpp
+        tests/compressor/CompressorTest.cpp
+        tests/compressor/EnvelopeFollowerTest.cpp
+        tests/config/ConfigTest.cpp
+        tests/logging/LoggerTest.cpp
+        ${AUDIOCOMPD_SOURCES}
+    )
+    configure_audiocompd_target(unit_test)
+    target_include_directories(unit_test PRIVATE tests)
+    target_compile_definitions(unit_test PRIVATE
+        AUDIOCOMPD_TEST_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+    )
 
-add_test(NAME unit_test COMMAND unit_test)
+    add_test(NAME unit_test COMMAND unit_test)
+endif()
 
 install(TARGETS audiocompd RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 set(AUDIOCOMPD_CONFIG_INSTALL_DIR "/etc/audiocompd" CACHE PATH
@@ -102,4 +163,33 @@ install(FILES config/audiocompd.xml DESTINATION ${AUDIOCOMPD_CONFIG_INSTALL_DIR}
 install(FILES schema/audiocompd.xsd DESTINATION ${AUDIOCOMPD_SCHEMA_INSTALL_DIR})
 install(FILES packaging/systemd/audiocompd.service
     DESTINATION ${AUDIOCOMPD_SYSTEMD_INSTALL_DIR})
+
+set(CPACK_PACKAGE_NAME "audiocompd")
+set(CPACK_PACKAGE_VENDOR "audiocompd")
+set(CPACK_PACKAGE_CONTACT "audiocompd maintainers")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY
+    "Real-time system audio compressor for Linux")
+set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}" CACHE STRING
+    "Version used for generated packages")
+set(CPACK_PACKAGING_INSTALL_PREFIX "/usr")
+
+set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
+set(CPACK_DEBIAN_PACKAGE_MAINTAINER "audiocompd maintainers")
+set(CPACK_DEBIAN_PACKAGE_SECTION "sound")
+set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
+set(CPACK_DEBIAN_PACKAGE_RELEASE "1" CACHE STRING
+    "Debian package revision")
+set(CPACK_DEBIAN_PACKAGE_DEPENDS
+    "libc6, libgcc-s1, libstdc++6, pipewire")
+
+set(CPACK_RPM_FILE_NAME RPM-DEFAULT)
+set(CPACK_RPM_PACKAGE_GROUP "Applications/Multimedia")
+set(CPACK_RPM_PACKAGE_RELEASE "1" CACHE STRING
+    "RPM package release")
+set(CPACK_RPM_PACKAGE_REQUIRES "pipewire")
+set(CPACK_RPM_PACKAGE_AUTOREQPROV ON)
+set(CPACK_RPM_USER_FILELIST
+    "%config(noreplace) /etc/audiocompd/audiocompd.xml")
+
+include(CPack)
 
