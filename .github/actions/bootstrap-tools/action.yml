@@ -1,5 +1,5 @@
 name: Bootstrap host tools
-description: Provide native host-tool executables without requiring root access
+description: Provide native host build tools without requiring root access
 
 runs:
   using: composite
@@ -11,7 +11,19 @@ runs:
       run: |
         missing=false
 
-        for tool in git zip unzip pkg-config; do
+        required_tools=(
+          git
+          zip
+          unzip
+          pkg-config
+          autoconf
+          autoheader
+          aclocal
+          automake
+          libtoolize
+        )
+
+        for tool in "${required_tools[@]}"; do
           if command -v "$tool" >/dev/null 2>&1; then
             echo "$tool: $(command -v "$tool")"
           else
@@ -26,16 +38,11 @@ runs:
       if: steps.tools.outputs.missing == 'true'
       uses: pkgxdev/setup@4d4ae97af87ccb39ab8be4e073dea697fef2c6f7
 
-    - name: Add native pkgx executables to PATH
+    - name: Add pkgx host tools to PATH
       if: steps.tools.outputs.missing == 'true'
       shell: bash
       run: |
         set -euo pipefail
-
-        git_was_missing=false
-        if ! command -v git >/dev/null 2>&1; then
-          git_was_missing=true
-        fi
 
         add_tool() {
           local command_name="$1"
@@ -52,7 +59,7 @@ runs:
           )"
 
           if [[ -z "$executable" || ! -x "$executable" ]]; then
-            echo "::error::pkgx did not provide an executable for $command_name"
+            echo "::error::pkgx did not provide $command_name"
             exit 1
           fi
 
@@ -65,22 +72,52 @@ runs:
         add_tool unzip info-zip.org/unzip
         add_tool pkg-config freedesktop.org/pkg-config
 
-        if [[ "$git_was_missing" == "true" ]]; then
-          git_library_path="$(
-            pkgx --quiet +git-scm.org -- \
-              /bin/sh -c 'printf %s "${LD_LIBRARY_PATH-}"'
-          )"
+        add_tool autoconf gnu.org/autoconf
+        add_tool autoheader gnu.org/autoconf
+        add_tool automake gnu.org/automake
+        add_tool aclocal gnu.org/automake
+        add_tool libtoolize gnu.org/libtool
 
-          if [[ -z "$git_library_path" ]]; then
-            echo "::error::pkgx did not provide Git's runtime library path"
-            exit 1
+    - name: Configure Autotools environment
+      if: steps.tools.outputs.missing == 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        autotools_path="$(
+          pkgx --quiet \
+            +gnu.org/autoconf \
+            +gnu.org/autoconf-archive \
+            +gnu.org/automake \
+            +gnu.org/libtool \
+            -- /bin/sh -c 'printf %s "$PATH"'
+        )"
+
+        aclocal_path="$(
+          pkgx --quiet \
+            +gnu.org/autoconf \
+            +gnu.org/autoconf-archive \
+            +gnu.org/automake \
+            +gnu.org/libtool \
+            -- /bin/sh -c 'printf %s "${ACLOCAL_PATH-}"'
+        )"
+
+        if [[ -z "$autotools_path" ]]; then
+          echo "::error::pkgx did not provide an Autotools PATH"
+          exit 1
+        fi
+
+        while IFS= read -r directory; do
+          if [[ -n "$directory" && -d "$directory" ]]; then
+            echo "$directory" >> "$GITHUB_PATH"
           fi
+        done < <(
+          printf '%s' "$autotools_path" \
+            | tr ':' '\n'
+        )
 
-          if [[ -n "${LD_LIBRARY_PATH-}" ]]; then
-            git_library_path="$git_library_path:$LD_LIBRARY_PATH"
-          fi
-
-          echo "LD_LIBRARY_PATH=$git_library_path" >> "$GITHUB_ENV"
+        if [[ -n "$aclocal_path" ]]; then
+          echo "ACLOCAL_PATH=$aclocal_path" >> "$GITHUB_ENV"
         fi
 
     - name: Verify host tools
@@ -88,7 +125,19 @@ runs:
       run: |
         set -euo pipefail
 
-        for tool in git zip unzip pkg-config; do
+        required_tools=(
+          git
+          zip
+          unzip
+          pkg-config
+          autoconf
+          autoheader
+          aclocal
+          automake
+          libtoolize
+        )
+
+        for tool in "${required_tools[@]}"; do
           executable="$(command -v "$tool")"
           echo "$tool: $executable"
 
@@ -100,3 +149,6 @@ runs:
 
         git --version
         pkg-config --version
+        autoconf --version | head -n 1
+        automake --version | head -n 1
+        libtoolize --version | head -n 1
