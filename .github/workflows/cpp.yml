@@ -6,6 +6,7 @@ on:
       - "**"
     tags:
       - "v*.*.*"
+
   workflow_dispatch:
     inputs:
       build_packages:
@@ -31,7 +32,11 @@ jobs:
       VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/.cache/vcpkg
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Bootstrap host tools
+        uses: ./.github/actions/bootstrap-tool
 
       - name: Restore dependency cache
         uses: actions/cache@v4
@@ -39,13 +44,15 @@ jobs:
           path: |
             ${{ github.workspace }}/.cache/vcpkg
             build/_deps/vcpkg
-          key: audiocompd-${{ runner.os }}-${{ runner.arch }}-vcpkg-${{ hashFiles('vcpkg.json', 'cmake/BootstrapVcpkg.cmake') }}
+          key: >-
+            audiocompd-${{ runner.os }}-${{ runner.arch }}-vcpkg-${{
+            hashFiles('vcpkg.json', 'cmake/BootstrapVcpkg.cmake') }}
 
       - name: Check build tools
         run: |
           missing=0
 
-          for tool in cmake ninja gcc g++; do
+          for tool in cmake make gcc g++ git zip unzip pkg-config; do
             if command -v "$tool" >/dev/null 2>&1; then
               echo "$tool: $(command -v "$tool")"
             else
@@ -60,7 +67,7 @@ jobs:
         run: |
           cmake -E make_directory "$VCPKG_DEFAULT_BINARY_CACHE"
 
-          cmake -S . -B build -G Ninja \
+          cmake -S . -B build -G "Unix Makefiles" \
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_TESTING=ON
 
@@ -91,7 +98,11 @@ jobs:
       VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/.cache/vcpkg
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Bootstrap host tools
+        uses: ./.github/actions/bootstrap-tool
 
       - name: Restore dependency cache
         uses: actions/cache@v4
@@ -99,13 +110,26 @@ jobs:
           path: |
             ${{ github.workspace }}/.cache/vcpkg
             build/_deps/vcpkg
-          key: audiocompd-${{ runner.os }}-${{ runner.arch }}-vcpkg-${{ hashFiles('vcpkg.json', 'cmake/BootstrapVcpkg.cmake') }}
+          key: >-
+            audiocompd-${{ runner.os }}-${{ runner.arch }}-vcpkg-${{
+            hashFiles('vcpkg.json', 'cmake/BootstrapVcpkg.cmake') }}
 
       - name: Check analysis tools
         run: |
           missing=0
 
-          for tool in cmake ninja gcc g++ clang-tidy run-clang-tidy; do
+          for tool in \
+            cmake \
+            make \
+            gcc \
+            g++ \
+            git \
+            zip \
+            unzip \
+            pkg-config \
+            clang-tidy \
+            run-clang-tidy
+          do
             if command -v "$tool" >/dev/null 2>&1; then
               echo "$tool: $(command -v "$tool")"
             else
@@ -120,7 +144,7 @@ jobs:
         run: |
           cmake -E make_directory "$VCPKG_DEFAULT_BINARY_CACHE"
 
-          cmake -S . -B build -G Ninja \
+          cmake -S . -B build-tidy -G "Unix Makefiles" \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
             -DBUILD_TESTING=ON
@@ -128,7 +152,7 @@ jobs:
       - name: Run clang-tidy
         run: |
           run-clang-tidy \
-            -p build \
+            -p build-tidy \
             -j "$(nproc)" \
             -header-filter='^.*/src/.*' \
             -quiet \
@@ -136,7 +160,10 @@ jobs:
 
   package:
     name: Build RPM and DEB Packages
-    needs: [build, clang-tidy]
+    needs:
+      - build
+      - clang-tidy
+
     if: >-
       github.ref_type == 'tag' ||
       (github.event_name == 'push' && github.ref_name == 'main') ||
@@ -155,7 +182,11 @@ jobs:
       VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/.cache/vcpkg
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Bootstrap host tools
+        uses: ./.github/actions/bootstrap-tool
 
       - name: Restore dependency cache
         uses: actions/cache@v4
@@ -163,7 +194,9 @@ jobs:
           path: |
             ${{ github.workspace }}/.cache/vcpkg
             build/_deps/vcpkg
-          key: audiocompd-${{ runner.os }}-${{ runner.arch }}-vcpkg-${{ hashFiles('vcpkg.json', 'cmake/BootstrapVcpkg.cmake') }}
+          key: >-
+            audiocompd-${{ runner.os }}-${{ runner.arch }}-vcpkg-${{
+            hashFiles('vcpkg.json', 'cmake/BootstrapVcpkg.cmake') }}
 
       - name: Prepare package metadata
         id: package_metadata
@@ -171,9 +204,12 @@ jobs:
           set -euo pipefail
 
           safe_ref="${GITHUB_REF_NAME//[^A-Za-z0-9._-]/_}"
-          project_version="$(sed -nE \
-            's/^project\(audiocompd VERSION ([0-9]+\.[0-9]+\.[0-9]+).*/\1/p' \
-            CMakeLists.txt)"
+
+          project_version="$(
+            sed -nE \
+              's/^project\(audiocompd VERSION ([0-9]+\.[0-9]+\.[0-9]+).*/\1/p' \
+              CMakeLists.txt
+          )"
 
           if [[ -z "$project_version" ]]; then
             echo "::error::Could not read the project version from CMakeLists.txt"
@@ -187,6 +223,7 @@ jobs:
             fi
 
             tag_version="${GITHUB_REF_NAME#v}"
+
             if [[ "$tag_version" != "$project_version" ]]; then
               echo "::error::Tag version $tag_version does not match CMake project version $project_version"
               exit 1
@@ -214,7 +251,19 @@ jobs:
         run: |
           missing=0
 
-          for tool in cmake cpack ninja gcc g++ rpmbuild; do
+          for tool in \
+            cmake \
+            cpack \
+            make \
+            gcc \
+            g++ \
+            git \
+            zip \
+            unzip \
+            pkg-config \
+            rpmbuild \
+            dpkg-deb
+          do
             if command -v "$tool" >/dev/null 2>&1; then
               echo "$tool: $(command -v "$tool")"
             else
@@ -229,7 +278,7 @@ jobs:
         run: |
           cmake -E make_directory "$VCPKG_DEFAULT_BINARY_CACHE"
 
-          cmake -S . -B build -G Ninja \
+          cmake -S . -B build-package -G "Unix Makefiles" \
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_TESTING=OFF \
             -DCPACK_RPM_PACKAGE_RELEASE="${{ steps.package_metadata.outputs.release }}" \
@@ -237,30 +286,33 @@ jobs:
 
       - name: Build application
         run: |
-          cmake --build build \
+          cmake --build build-package \
             --target audiocompd \
             --parallel "$(nproc)"
 
       - name: Build RPM package
         run: |
           cpack \
-            --config build/CPackConfig.cmake \
+            --config build-package/CPackConfig.cmake \
             -G RPM \
-            -B build/packages/rpm
+            -B build-package/packages/rpm
 
       - name: Build DEB package
         run: |
           cpack \
-            --config build/CPackConfig.cmake \
+            --config build-package/CPackConfig.cmake \
             -G DEB \
-            -B build/packages/deb
+            -B build-package/packages/deb
 
       - name: Create package checksums
         run: |
           set -euo pipefail
 
-          cd build/packages
-          find rpm deb -type f \( -name '*.rpm' -o -name '*.deb' \) \
+          cd build-package/packages
+
+          find rpm deb \
+            -type f \
+            \( -name '*.rpm' -o -name '*.deb' \) \
             -print0 \
             | sort -z \
             | xargs -0 sha256sum > SHA256SUMS
@@ -270,11 +322,13 @@ jobs:
       - name: Upload packages as workflow artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: audiocompd-${{ steps.package_metadata.outputs.channel }}-${{ steps.package_metadata.outputs.ref }}-${{ github.run_number }}
+          name: >-
+            audiocompd-${{ steps.package_metadata.outputs.channel }}-${{
+            steps.package_metadata.outputs.ref }}-${{ github.run_number }}
           path: |
-            build/packages/rpm/*.rpm
-            build/packages/deb/*.deb
-            build/packages/SHA256SUMS
+            build-package/packages/rpm/*.rpm
+            build-package/packages/deb/*.deb
+            build-package/packages/SHA256SUMS
           if-no-files-found: error
 
       - name: Create GitHub release
@@ -283,8 +337,8 @@ jobs:
         with:
           name: audiocompd ${{ github.ref_name }}
           files: |
-            build/packages/rpm/*.rpm
-            build/packages/deb/*.deb
-            build/packages/SHA256SUMS
+            build-package/packages/rpm/*.rpm
+            build-package/packages/deb/*.deb
+            build-package/packages/SHA256SUMS
           generate_release_notes: true
           fail_on_unmatched_files: true
