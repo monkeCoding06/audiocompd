@@ -32,6 +32,39 @@ jobs:
       VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/.cache/vcpkg
 
     steps:
+      - name: Install pkgx
+        uses: pkgxdev/setup@4d4ae97af87ccb39ab8be4e073dea697fef2c6f7
+
+      - name: Bootstrap Git
+        run: |
+          set -euo pipefail
+
+          git_executable="$(
+            pkgx --quiet +git-scm.org -- \
+              /bin/sh -c 'command -v git'
+          )"
+
+          git_library_path="$(
+            pkgx --quiet +git-scm.org -- \
+              /bin/sh -c 'printf %s "${LD_LIBRARY_PATH-}"'
+          )"
+
+          if [[ -z "$git_executable" || ! -x "$git_executable" ]]; then
+            echo "::error::pkgx did not provide Git"
+            exit 1
+          fi
+
+          if [[ -z "$git_library_path" ]]; then
+            echo "::error::pkgx did not provide Git's runtime libraries"
+            exit 1
+          fi
+
+          echo "$(dirname "$git_executable")" >> "$GITHUB_PATH"
+          echo "LD_LIBRARY_PATH=$git_library_path" >> "$GITHUB_ENV"
+
+      - name: Verify Git
+        run: git --version
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -44,9 +77,7 @@ jobs:
           path: |
             ${{ github.workspace }}/.cache/vcpkg
             build/_deps/vcpkg
-          key: >-
-            audiocompd-${{ runner.os }}-${{ runner.arch }}-vcpkg-${{
-            hashFiles('vcpkg.json', 'cmake/BootstrapVcpkg.cmake') }}
+          key: audiocompd-${{ runner.os }}-${{ runner.arch }}-vcpkg-${{ hashFiles('vcpkg.json', 'cmake/BootstrapVcpkg.cmake') }}
 
       - name: Check build tools
         run: |
@@ -98,11 +129,44 @@ jobs:
       VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/.cache/vcpkg
 
     steps:
+      - name: Install pkgx
+        uses: pkgxdev/setup@4d4ae97af87ccb39ab8be4e073dea697fef2c6f7
+
+      - name: Bootstrap Git
+        run: |
+          set -euo pipefail
+
+          git_executable="$(
+            pkgx --quiet +git-scm.org -- \
+              /bin/sh -c 'command -v git'
+          )"
+
+          git_library_path="$(
+            pkgx --quiet +git-scm.org -- \
+              /bin/sh -c 'printf %s "${LD_LIBRARY_PATH-}"'
+          )"
+
+          if [[ -z "$git_executable" || ! -x "$git_executable" ]]; then
+            echo "::error::pkgx did not provide Git"
+            exit 1
+          fi
+
+          if [[ -z "$git_library_path" ]]; then
+            echo "::error::pkgx did not provide Git's runtime libraries"
+            exit 1
+          fi
+
+          echo "$(dirname "$git_executable")" >> "$GITHUB_PATH"
+          echo "LD_LIBRARY_PATH=$git_library_path" >> "$GITHUB_ENV"
+
+      - name: Verify Git
+        run: git --version
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Bootstrap host tools
-        uses: ./.github/actions/bootstrap-tool
+        uses: ./.github/actions/bootstrap-tools
 
       - name: Restore dependency cache
         uses: actions/cache@v4
@@ -110,9 +174,7 @@ jobs:
           path: |
             ${{ github.workspace }}/.cache/vcpkg
             build/_deps/vcpkg
-          key: >-
-            audiocompd-${{ runner.os }}-${{ runner.arch }}-vcpkg-${{
-            hashFiles('vcpkg.json', 'cmake/BootstrapVcpkg.cmake') }}
+          key: audiocompd-${{ runner.os }}-${{ runner.arch }}-vcpkg-${{ hashFiles('vcpkg.json', 'cmake/BootstrapVcpkg.cmake') }}
 
       - name: Check analysis tools
         run: |
@@ -182,11 +244,44 @@ jobs:
       VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/.cache/vcpkg
 
     steps:
+      - name: Install pkgx
+        uses: pkgxdev/setup@4d4ae97af87ccb39ab8be4e073dea697fef2c6f7
+
+      - name: Bootstrap Git
+        run: |
+          set -euo pipefail
+
+          git_executable="$(
+            pkgx --quiet +git-scm.org -- \
+              /bin/sh -c 'command -v git'
+          )"
+
+          git_library_path="$(
+            pkgx --quiet +git-scm.org -- \
+              /bin/sh -c 'printf %s "${LD_LIBRARY_PATH-}"'
+          )"
+
+          if [[ -z "$git_executable" || ! -x "$git_executable" ]]; then
+            echo "::error::pkgx did not provide Git"
+            exit 1
+          fi
+
+          if [[ -z "$git_library_path" ]]; then
+            echo "::error::pkgx did not provide Git's runtime libraries"
+            exit 1
+          fi
+
+          echo "$(dirname "$git_executable")" >> "$GITHUB_PATH"
+          echo "LD_LIBRARY_PATH=$git_library_path" >> "$GITHUB_ENV"
+
+      - name: Verify Git
+        run: git --version
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Bootstrap host tools
-        uses: ./.github/actions/bootstrap-tool
+        uses: ./.github/actions/bootstrap-tools
 
       - name: Restore dependency cache
         uses: actions/cache@v4
@@ -194,9 +289,7 @@ jobs:
           path: |
             ${{ github.workspace }}/.cache/vcpkg
             build/_deps/vcpkg
-          key: >-
-            audiocompd-${{ runner.os }}-${{ runner.arch }}-vcpkg-${{
-            hashFiles('vcpkg.json', 'cmake/BootstrapVcpkg.cmake') }}
+          key: audiocompd-${{ runner.os }}-${{ runner.arch }}-vcpkg-${{ hashFiles('vcpkg.json', 'cmake/BootstrapVcpkg.cmake') }}
 
       - name: Prepare package metadata
         id: package_metadata
@@ -322,9 +415,7 @@ jobs:
       - name: Upload packages as workflow artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: >-
-            audiocompd-${{ steps.package_metadata.outputs.channel }}-${{
-            steps.package_metadata.outputs.ref }}-${{ github.run_number }}
+          name: audiocompd-${{ steps.package_metadata.outputs.channel }}-${{ steps.package_metadata.outputs.ref }}-${{ github.run_number }}
           path: |
             build-package/packages/rpm/*.rpm
             build-package/packages/deb/*.deb
