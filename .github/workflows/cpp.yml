@@ -28,78 +28,60 @@ jobs:
       run:
         shell: bash
 
-    env:
-      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/.cache/vcpkg
-
     steps:
-      - name: Install pkgx
-        uses: pkgxdev/setup@4d4ae97af87ccb39ab8be4e073dea697fef2c6f7
-
-      - name: Bootstrap Git
+      - name: Install build dependencies
         run: |
           set -euo pipefail
 
-          git_executable="$(
-            pkgx --quiet +git-scm.org -- \
-              /bin/sh -c 'command -v git'
-          )"
+          sudo -n apt-get update
+          sudo -n apt-get install -y \
+            build-essential \
+            cmake \
+            ninja-build \
+            pkg-config \
+            git \
+            libxml2-dev \
+            libasound2-dev \
+            libjack-jackd2-dev \
+            libpipewire-0.3-dev
 
-          git_library_path="$(
-            pkgx --quiet +git-scm.org -- \
-              /bin/sh -c 'printf %s "${LD_LIBRARY_PATH-}"'
-          )"
+      - name: Verify build tools
+        run: |
+          set -euo pipefail
 
-          if [[ -z "$git_executable" || ! -x "$git_executable" ]]; then
-            echo "::error::pkgx did not provide Git"
-            exit 1
-          fi
+          required_tools=(
+            cmake
+            ninja
+            gcc
+            g++
+            git
+            pkg-config
+          )
 
-          if [[ -z "$git_library_path" ]]; then
-            echo "::error::pkgx did not provide Git's runtime libraries"
-            exit 1
-          fi
+          for tool in "${required_tools[@]}"; do
+            executable="$(command -v "$tool" || true)"
 
-          echo "$(dirname "$git_executable")" >> "$GITHUB_PATH"
-          echo "LD_LIBRARY_PATH=$git_library_path" >> "$GITHUB_ENV"
+            if [[ -z "$executable" ]]; then
+              echo "::error::$tool is not available"
+              exit 1
+            fi
 
-      - name: Verify Git
-        run: git --version
+            echo "$tool: $executable"
+          done
+
+          git --version
+          cmake --version
+          ninja --version
+          pkg-config --version
 
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Bootstrap host tools
-        uses: ./.github/actions/bootstrap-tools
-
-      - name: Restore dependency cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ${{ github.workspace }}/.cache/vcpkg
-            build/_deps/vcpkg
-          key: audiocompd-${{ runner.os }}-${{ runner.arch }}-vcpkg-${{ hashFiles('vcpkg.json', 'cmake/BootstrapVcpkg.cmake') }}
-
-      - name: Check build tools
-        run: |
-          missing=0
-
-          for tool in cmake make gcc g++ git zip unzip pkg-config; do
-            if command -v "$tool" >/dev/null 2>&1; then
-              echo "$tool: $(command -v "$tool")"
-            else
-              echo "::error::$tool is not installed or not available in PATH"
-              missing=1
-            fi
-          done
-
-          exit "$missing"
-
       - name: Configure
         run: |
-          cmake -E make_directory "$VCPKG_DEFAULT_BINARY_CACHE"
-
-          cmake -S . -B build -G "Unix Makefiles" \
+          cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
+            -DAUDIOCOMPD_FETCH_DEPENDENCIES=OFF \
             -DBUILD_TESTING=ON
 
       - name: Build unit tests
@@ -125,90 +107,59 @@ jobs:
       run:
         shell: bash
 
-    env:
-      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/.cache/vcpkg
-
     steps:
-      - name: Install pkgx
-        uses: pkgxdev/setup@4d4ae97af87ccb39ab8be4e073dea697fef2c6f7
-
-      - name: Bootstrap Git
+      - name: Install analysis dependencies
         run: |
           set -euo pipefail
 
-          git_executable="$(
-            pkgx --quiet +git-scm.org -- \
-              /bin/sh -c 'command -v git'
-          )"
+          sudo -n apt-get update
+          sudo -n apt-get install -y \
+            build-essential \
+            cmake \
+            ninja-build \
+            pkg-config \
+            git \
+            clang-tidy \
+            libxml2-dev \
+            libasound2-dev \
+            libjack-jackd2-dev \
+            libpipewire-0.3-dev
 
-          git_library_path="$(
-            pkgx --quiet +git-scm.org -- \
-              /bin/sh -c 'printf %s "${LD_LIBRARY_PATH-}"'
-          )"
+      - name: Verify analysis tools
+        run: |
+          set -euo pipefail
 
-          if [[ -z "$git_executable" || ! -x "$git_executable" ]]; then
-            echo "::error::pkgx did not provide Git"
-            exit 1
-          fi
+          required_tools=(
+            cmake
+            ninja
+            gcc
+            g++
+            git
+            pkg-config
+            clang-tidy
+            run-clang-tidy
+          )
 
-          if [[ -z "$git_library_path" ]]; then
-            echo "::error::pkgx did not provide Git's runtime libraries"
-            exit 1
-          fi
+          for tool in "${required_tools[@]}"; do
+            executable="$(command -v "$tool" || true)"
 
-          echo "$(dirname "$git_executable")" >> "$GITHUB_PATH"
-          echo "LD_LIBRARY_PATH=$git_library_path" >> "$GITHUB_ENV"
+            if [[ -z "$executable" ]]; then
+              echo "::error::$tool is not available"
+              exit 1
+            fi
 
-      - name: Verify Git
-        run: git --version
+            echo "$tool: $executable"
+          done
 
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Bootstrap host tools
-        uses: ./.github/actions/bootstrap-tools
-
-      - name: Restore dependency cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ${{ github.workspace }}/.cache/vcpkg
-            build/_deps/vcpkg
-          key: audiocompd-${{ runner.os }}-${{ runner.arch }}-vcpkg-${{ hashFiles('vcpkg.json', 'cmake/BootstrapVcpkg.cmake') }}
-
-      - name: Check analysis tools
-        run: |
-          missing=0
-
-          for tool in \
-            cmake \
-            make \
-            gcc \
-            g++ \
-            git \
-            zip \
-            unzip \
-            pkg-config \
-            clang-tidy \
-            run-clang-tidy
-          do
-            if command -v "$tool" >/dev/null 2>&1; then
-              echo "$tool: $(command -v "$tool")"
-            else
-              echo "::error::$tool is not installed or not available in PATH"
-              missing=1
-            fi
-          done
-
-          exit "$missing"
-
       - name: Configure compile database
         run: |
-          cmake -E make_directory "$VCPKG_DEFAULT_BINARY_CACHE"
-
-          cmake -S . -B build-tidy -G "Unix Makefiles" \
+          cmake -S . -B build-tidy -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DAUDIOCOMPD_FETCH_DEPENDENCIES=OFF \
             -DBUILD_TESTING=ON
 
       - name: Run clang-tidy
@@ -240,56 +191,54 @@ jobs:
       run:
         shell: bash
 
-    env:
-      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/.cache/vcpkg
-
     steps:
-      - name: Install pkgx
-        uses: pkgxdev/setup@4d4ae97af87ccb39ab8be4e073dea697fef2c6f7
-
-      - name: Bootstrap Git
+      - name: Install packaging dependencies
         run: |
           set -euo pipefail
 
-          git_executable="$(
-            pkgx --quiet +git-scm.org -- \
-              /bin/sh -c 'command -v git'
-          )"
+          sudo -n apt-get update
+          sudo -n apt-get install -y \
+            build-essential \
+            cmake \
+            ninja-build \
+            pkg-config \
+            git \
+            rpm \
+            dpkg-dev \
+            libxml2-dev \
+            libasound2-dev \
+            libjack-jackd2-dev \
+            libpipewire-0.3-dev
 
-          git_library_path="$(
-            pkgx --quiet +git-scm.org -- \
-              /bin/sh -c 'printf %s "${LD_LIBRARY_PATH-}"'
-          )"
+      - name: Verify packaging tools
+        run: |
+          set -euo pipefail
 
-          if [[ -z "$git_executable" || ! -x "$git_executable" ]]; then
-            echo "::error::pkgx did not provide Git"
-            exit 1
-          fi
+          required_tools=(
+            cmake
+            cpack
+            ninja
+            gcc
+            g++
+            git
+            pkg-config
+            rpmbuild
+            dpkg-deb
+          )
 
-          if [[ -z "$git_library_path" ]]; then
-            echo "::error::pkgx did not provide Git's runtime libraries"
-            exit 1
-          fi
+          for tool in "${required_tools[@]}"; do
+            executable="$(command -v "$tool" || true)"
 
-          echo "$(dirname "$git_executable")" >> "$GITHUB_PATH"
-          echo "LD_LIBRARY_PATH=$git_library_path" >> "$GITHUB_ENV"
+            if [[ -z "$executable" ]]; then
+              echo "::error::$tool is not available"
+              exit 1
+            fi
 
-      - name: Verify Git
-        run: git --version
+            echo "$tool: $executable"
+          done
 
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Bootstrap host tools
-        uses: ./.github/actions/bootstrap-tools
-
-      - name: Restore dependency cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ${{ github.workspace }}/.cache/vcpkg
-            build/_deps/vcpkg
-          key: audiocompd-${{ runner.os }}-${{ runner.arch }}-vcpkg-${{ hashFiles('vcpkg.json', 'cmake/BootstrapVcpkg.cmake') }}
 
       - name: Prepare package metadata
         id: package_metadata
@@ -340,39 +289,11 @@ jobs:
           echo "Package channel: $channel"
           echo "Package version: $project_version-$package_release"
 
-      - name: Check packaging tools
-        run: |
-          missing=0
-
-          for tool in \
-            cmake \
-            cpack \
-            make \
-            gcc \
-            g++ \
-            git \
-            zip \
-            unzip \
-            pkg-config \
-            rpmbuild \
-            dpkg-deb
-          do
-            if command -v "$tool" >/dev/null 2>&1; then
-              echo "$tool: $(command -v "$tool")"
-            else
-              echo "::error::$tool is not installed or not available in PATH"
-              missing=1
-            fi
-          done
-
-          exit "$missing"
-
       - name: Configure package build
         run: |
-          cmake -E make_directory "$VCPKG_DEFAULT_BINARY_CACHE"
-
-          cmake -S . -B build-package -G "Unix Makefiles" \
+          cmake -S . -B build-package -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
+            -DAUDIOCOMPD_FETCH_DEPENDENCIES=OFF \
             -DBUILD_TESTING=OFF \
             -DCPACK_RPM_PACKAGE_RELEASE="${{ steps.package_metadata.outputs.release }}" \
             -DCPACK_DEBIAN_PACKAGE_RELEASE="${{ steps.package_metadata.outputs.release }}"
