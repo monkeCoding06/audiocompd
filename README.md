@@ -8,8 +8,8 @@ the audio server, and native ALSA and JACK backends are also available.
 
 The project intentionally produces two executables:
 
-- `audiocompd` - the service application
-- `unit_test` - the self-contained unit-test executable
+- `audiocompd` â€” the service application
+- `unit_test` â€” the self-contained unit-test executable
 
 ## Current features
 
@@ -229,9 +229,9 @@ journalctl --user -u audiocompd -f
 ```
 
 The service is intentionally a user unit: PipeWire and WirePlumber normally
-run in the logged-in user's session, and their socket lives below that user's
-runtime directory. A system service running as a separate `audiocompd` account
-would not naturally share that audio graph.
+run in the logged-in user's session, and the user service automatically
+inherits the correct runtime directory and access to that audio graph. No
+username or numeric UID is hard-coded into the project.
 
 This covers applications routed through PipeWire, including its PulseAudio and
 JACK compatibility layers. A program that opens an ALSA `hw:` device directly
@@ -254,3 +254,4 @@ tests              hardware-independent unit tests
 No logging, allocation, file access, or locking occurs inside the successful
 real-time processing path. Buffer storage is allocated before processing
 begins.
+

@@ -102,3 +102,4 @@ install(FILES config/audiocompd.xml DESTINATION ${AUDIOCOMPD_CONFIG_INSTALL_DIR}
 install(FILES schema/audiocompd.xsd DESTINATION ${AUDIOCOMPD_SCHEMA_INSTALL_DIR})
 install(FILES packaging/systemd/audiocompd.service
     DESTINATION ${AUDIOCOMPD_SYSTEMD_INSTALL_DIR})
+

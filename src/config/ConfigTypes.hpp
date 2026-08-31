@@ -58,3 +58,4 @@ struct AppConfig {
 };
 
 } // namespace audiocompd
+

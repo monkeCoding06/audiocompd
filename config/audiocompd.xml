@@ -15,8 +15,8 @@
     </audio>
 
     <compressor enabled="true">
-        <thresholdDb>-24.0</thresholdDb>
-        <ratio>20.0</ratio>
+        <thresholdDb>-4.0</thresholdDb>
+        <ratio>4.0</ratio>
         <attackMs>1.0</attackMs>
         <releaseMs>333.0</releaseMs>
         <kneeDb>6.0</kneeDb>

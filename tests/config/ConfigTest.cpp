@@ -61,3 +61,4 @@ void registerConfigTests(TestRunner& runner) {
             "missing XML configuration was accepted");
     });
 }
+

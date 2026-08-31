@@ -45,3 +45,4 @@ std::unique_ptr<AudioBackend> AudioBackendFactory::create(const BackendConfig& c
 }
 
 } // namespace audiocompd
+

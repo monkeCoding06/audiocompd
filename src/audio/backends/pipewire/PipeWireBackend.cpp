@@ -407,3 +407,4 @@ void PipeWireBackend::reportFailure(const std::string& message) noexcept {
 }
 
 } // namespace audiocompd
+

@@ -234,3 +234,4 @@ const AppConfig& Config::values() const noexcept {
 }
 
 } // namespace audiocompd
+
