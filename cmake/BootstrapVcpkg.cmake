@@ -25,14 +25,11 @@ function(audiocompd_bootstrap_vcpkg source_directory)
 
     file(READ "${vcpkg_manifest}" vcpkg_manifest_json)
     string(JSON vcpkg_commit
-        ERROR_VARIABLE vcpkg_json_error
         GET "${vcpkg_manifest_json}" builtin-baseline)
-    string(LENGTH "${vcpkg_commit}" vcpkg_commit_length)
-    if(NOT vcpkg_json_error STREQUAL "NOTFOUND"
-       OR NOT vcpkg_commit_length EQUAL 40
-       OR NOT vcpkg_commit MATCHES "^[0-9A-Fa-f]+$")
+    string(STRIP "${vcpkg_commit}" vcpkg_commit)
+    if("${vcpkg_commit}" STREQUAL "")
         message(FATAL_ERROR
-            "vcpkg.json must contain a valid 40-character builtin-baseline")
+            "vcpkg.json contains an empty builtin-baseline")
     endif()
     string(TOLOWER "${vcpkg_commit}" vcpkg_commit)
 
