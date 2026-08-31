@@ -1,0 +1,84 @@
+name: Bootstrap host tools
+description: Provide vcpkg host tools without requiring root access
+
+runs:
+  using: composite
+  steps:
+    - name: Check host tools
+      id: tools
+      shell: bash
+      run: |
+        missing=false
+
+        for tool in git zip unzip pkg-config; do
+          if command -v "$tool" >/dev/null 2>&1; then
+            echo "$tool: $(command -v "$tool")"
+          else
+            echo "$tool is unavailable and will be bootstrapped"
+            missing=true
+          fi
+        done
+
+        echo "missing=$missing" >> "$GITHUB_OUTPUT"
+
+    - name: Install pkgx
+      if: steps.tools.outputs.missing == 'true'
+      uses: pkgxdev/setup@4d4ae97af87ccb39ab8be4e073dea697fef2c6f7
+
+    - name: Create isolated tool wrappers
+      if: steps.tools.outputs.missing == 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        tools_directory="$RUNNER_TEMP/audiocompd-tools"
+        cmake -E remove_directory "$tools_directory"
+        cmake -E make_directory "$tools_directory"
+
+        create_wrapper() {
+          local command_name="$1"
+          local package_name="$2"
+
+          if command -v "$command_name" >/dev/null 2>&1; then
+            return
+          fi
+
+          printf '%s\n' \
+            '#!/usr/bin/env bash' \
+            'set -euo pipefail' \
+            "exec pkgx --quiet +$package_name -- $command_name \"\$@\"" \
+            > "$tools_directory/$command_name"
+          chmod +x "$tools_directory/$command_name"
+        }
+
+        create_wrapper git git-scm.org
+        create_wrapper zip info-zip.org/zip
+        create_wrapper unzip info-zip.org/unzip
+
+        if ! command -v pkg-config >/dev/null 2>&1; then
+          cat > "$tools_directory/pkg-config" <<'WRAPPER'
+        #!/usr/bin/env bash
+        set -euo pipefail
+
+        exec pkgx --quiet +freedesktop.org/pkg-config -- /usr/bin/env \
+          "PKG_CONFIG_PATH=${PKG_CONFIG_PATH-}" \
+          "PKG_CONFIG_LIBDIR=${PKG_CONFIG_LIBDIR-}" \
+          "PKG_CONFIG_SYSROOT_DIR=${PKG_CONFIG_SYSROOT_DIR-}" \
+          pkg-config "$@"
+        WRAPPER
+          chmod +x "$tools_directory/pkg-config"
+        fi
+
+        echo "$tools_directory" >> "$GITHUB_PATH"
+
+    - name: Verify host tools
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        for tool in git zip unzip pkg-config; do
+          command -v "$tool"
+        done
+
+        git --version
+        pkg-config --version
