@@ -8,8 +8,8 @@ the audio server, and native ALSA and JACK backends are also available.
 
 The project intentionally produces two executables:
 
-- `audiocompd` — the service application
-- `unit_test` — the self-contained unit-test executable
+- `audiocompd` - the service application
+- `unit_test` - the self-contained unit-test executable
 
 ## Current features
 
