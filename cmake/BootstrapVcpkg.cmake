@@ -33,6 +33,18 @@ function(audiocompd_bootstrap_vcpkg source_directory)
     endif()
     string(TOLOWER "${vcpkg_commit}" vcpkg_commit)
 
+    # The downloaded archive is already pinned to builtin-baseline, but unlike
+    # a Git clone it intentionally contains no repository history. Give vcpkg
+    # a generated manifest without builtin-baseline so it uses the ports from
+    # that exact archive instead of attempting `git show` or `git fetch`.
+    string(JSON vcpkg_runtime_manifest
+        REMOVE "${vcpkg_manifest_json}" builtin-baseline)
+    set(vcpkg_manifest_directory
+        "${CMAKE_BINARY_DIR}/_deps/audiocompd-vcpkg-manifest")
+    file(MAKE_DIRECTORY "${vcpkg_manifest_directory}")
+    file(WRITE "${vcpkg_manifest_directory}/vcpkg.json"
+        "${vcpkg_runtime_manifest}\n")
+
     set(vcpkg_download_directory "${CMAKE_BINARY_DIR}/_deps/downloads")
     set(vcpkg_root "${CMAKE_BINARY_DIR}/_deps/vcpkg")
     set(vcpkg_toolchain "${vcpkg_root}/scripts/buildsystems/vcpkg.cmake")
@@ -147,9 +159,9 @@ function(audiocompd_bootstrap_vcpkg source_directory)
     set(CMAKE_TOOLCHAIN_FILE "${vcpkg_toolchain}" CACHE FILEPATH
         "CMake toolchain provided by audiocompd's pinned vcpkg" FORCE)
     set(CMAKE_TOOLCHAIN_FILE "${vcpkg_toolchain}" PARENT_SCOPE)
-    set(VCPKG_MANIFEST_DIR "${source_directory}" CACHE PATH
+    set(VCPKG_MANIFEST_DIR "${vcpkg_manifest_directory}" CACHE PATH
         "audiocompd vcpkg manifest directory" FORCE)
-    set(VCPKG_MANIFEST_DIR "${source_directory}" PARENT_SCOPE)
+    set(VCPKG_MANIFEST_DIR "${vcpkg_manifest_directory}" PARENT_SCOPE)
     set(VCPKG_ROOT "${vcpkg_root}" CACHE PATH
         "Private vcpkg instance bootstrapped by audiocompd" FORCE)
     set(VCPKG_ROOT "${vcpkg_root}" PARENT_SCOPE)
