@@ -1,0 +1,41 @@
+{
+  "name": "audiocompd",
+  "version-string": "0.1.0",
+  "builtin-baseline": "9e593bb18ea69cc5095e012465dcd675a822ed0d",
+  "dependencies": [
+    "libxml2",
+    {
+      "name": "pkgconf",
+      "host": true
+    }
+  ],
+  "features": {
+    "alsa": {
+      "description": "Build the native ALSA backend",
+      "dependencies": [
+        {
+          "name": "alsa",
+          "platform": "linux"
+        }
+      ]
+    },
+    "jack": {
+      "description": "Build the native JACK backend",
+      "dependencies": [
+        {
+          "name": "jack2",
+          "platform": "linux"
+        }
+      ]
+    },
+    "pipewire": {
+      "description": "Build the PipeWire virtual-sink backend",
+      "dependencies": [
+        {
+          "name": "pipewire",
+          "platform": "linux"
+        }
+      ]
+    }
+  }
+}
