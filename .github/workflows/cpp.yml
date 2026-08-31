@@ -45,7 +45,7 @@ jobs:
         run: |
           missing=0
 
-          for tool in cmake ninja gcc g++; do
+          for tool in cmake make gcc g++; do
             if command -v "$tool" >/dev/null 2>&1; then
               echo "$tool: $(command -v "$tool")"
             else
@@ -60,7 +60,7 @@ jobs:
         run: |
           cmake -E make_directory "$VCPKG_DEFAULT_BINARY_CACHE"
 
-          cmake -S . -B build -G Ninja \
+          cmake -S . -B build -G "Unix Makefiles" \
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_TESTING=ON
 
@@ -105,7 +105,7 @@ jobs:
         run: |
           missing=0
 
-          for tool in cmake ninja gcc g++ clang-tidy run-clang-tidy; do
+          for tool in cmake make gcc g++ clang-tidy run-clang-tidy; do
             if command -v "$tool" >/dev/null 2>&1; then
               echo "$tool: $(command -v "$tool")"
             else
@@ -120,7 +120,7 @@ jobs:
         run: |
           cmake -E make_directory "$VCPKG_DEFAULT_BINARY_CACHE"
 
-          cmake -S . -B build -G Ninja \
+          cmake -S . -B build -G "Unix Makefiles" \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
             -DBUILD_TESTING=ON
@@ -214,7 +214,7 @@ jobs:
         run: |
           missing=0
 
-          for tool in cmake cpack ninja gcc g++ rpmbuild; do
+          for tool in cmake cpack make gcc g++ rpmbuild; do
             if command -v "$tool" >/dev/null 2>&1; then
               echo "$tool: $(command -v "$tool")"
             else
@@ -229,7 +229,7 @@ jobs:
         run: |
           cmake -E make_directory "$VCPKG_DEFAULT_BINARY_CACHE"
 
-          cmake -S . -B build -G Ninja \
+          cmake -S . -B build -G "Unix Makefiles" \
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_TESTING=OFF \
             -DCPACK_RPM_PACKAGE_RELEASE="${{ steps.package_metadata.outputs.release }}" \
