@@ -3,6 +3,7 @@ description: Provide native host-tool executables without requiring root access
 
 runs:
   using: composite
+
   steps:
     - name: Check host tools
       id: tools
@@ -25,17 +26,13 @@ runs:
       if: steps.tools.outputs.missing == 'true'
       uses: pkgxdev/setup@4d4ae97af87ccb39ab8be4e073dea697fef2c6f7
 
-    - name: Link native pkgx executables
+    - name: Add native pkgx executables to PATH
       if: steps.tools.outputs.missing == 'true'
       shell: bash
       run: |
         set -euo pipefail
 
-        tools_directory="$RUNNER_TEMP/audiocompd-tools-v2"
-        cmake -E remove_directory "$tools_directory"
-        cmake -E make_directory "$tools_directory"
-
-        link_tool() {
+        add_tool() {
           local command_name="$1"
           local package_name="$2"
 
@@ -54,16 +51,14 @@ runs:
             exit 1
           fi
 
-          ln -s "$executable" "$tools_directory/$command_name"
           echo "$command_name: $executable"
+          dirname "$executable" >> "$GITHUB_PATH"
         }
 
-        link_tool git git-scm.org
-        link_tool zip info-zip.org/zip
-        link_tool unzip info-zip.org/unzip
-        link_tool pkg-config freedesktop.org/pkg-config
-
-        echo "$tools_directory" >> "$GITHUB_PATH"
+        add_tool git git-scm.org
+        add_tool zip info-zip.org/zip
+        add_tool unzip info-zip.org/unzip
+        add_tool pkg-config freedesktop.org/pkg-config
 
     - name: Verify host tools
       shell: bash
