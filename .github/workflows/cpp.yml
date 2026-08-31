@@ -30,11 +30,21 @@ jobs:
 
     steps:
       - name: Install build dependencies
+        env:
+          SUDO_PASSWORD: ${{ secrets.RUNNER_SUDO_PASSWORD }}
         run: |
           set -euo pipefail
 
-          sudo -n apt-get update
-          sudo -n apt-get install -y \
+          if [[ -z "$SUDO_PASSWORD" ]]; then
+            echo "::error::RUNNER_SUDO_PASSWORD is not configured"
+            exit 1
+          fi
+
+          printf '%s\n' "$SUDO_PASSWORD" |
+            sudo -S -p '' -v
+
+          sudo apt-get update
+          sudo apt-get install -y \
             build-essential \
             cmake \
             ninja-build \
@@ -109,11 +119,21 @@ jobs:
 
     steps:
       - name: Install analysis dependencies
+        env:
+          SUDO_PASSWORD: ${{ secrets.RUNNER_SUDO_PASSWORD }}
         run: |
           set -euo pipefail
 
-          sudo -n apt-get update
-          sudo -n apt-get install -y \
+          if [[ -z "$SUDO_PASSWORD" ]]; then
+            echo "::error::RUNNER_SUDO_PASSWORD is not configured"
+            exit 1
+          fi
+
+          printf '%s\n' "$SUDO_PASSWORD" |
+            sudo -S -p '' -v
+
+          sudo apt-get update
+          sudo apt-get install -y \
             build-essential \
             cmake \
             ninja-build \
@@ -193,11 +213,21 @@ jobs:
 
     steps:
       - name: Install packaging dependencies
+        env:
+          SUDO_PASSWORD: ${{ secrets.RUNNER_SUDO_PASSWORD }}
         run: |
           set -euo pipefail
 
-          sudo -n apt-get update
-          sudo -n apt-get install -y \
+          if [[ -z "$SUDO_PASSWORD" ]]; then
+            echo "::error::RUNNER_SUDO_PASSWORD is not configured"
+            exit 1
+          fi
+
+          printf '%s\n' "$SUDO_PASSWORD" |
+            sudo -S -p '' -v
+
+          sudo apt-get update
+          sudo apt-get install -y \
             build-essential \
             cmake \
             ninja-build \
