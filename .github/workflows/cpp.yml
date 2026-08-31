@@ -363,6 +363,34 @@ jobs:
 
           cat SHA256SUMS
 
+      - name: Deploy packages to runner server
+        env:
+          SUDO_PASSWORD: ${{ secrets.RUNNER_SUDO_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          printf '%s\n' "$SUDO_PASSWORD" |
+            sudo -S -p '' -v
+
+          sudo mkdir -p \
+            /srv/packages/deb \
+            /srv/packages/rpm
+
+          sudo install -m 0644 \
+            build-package/packages/deb/*.deb \
+            /srv/packages/deb/
+
+          sudo install -m 0644 \
+            build-package/packages/rpm/*.rpm \
+            /srv/packages/rpm/
+
+          echo "Deployed DEB packages:"
+          ls -lh /srv/packages/deb
+
+          echo "Deployed RPM packages:"
+          ls -lh /srv/packages/rpm
+          
+
       - name: Upload packages as workflow artifacts
         uses: actions/upload-artifact@v4
         with:
