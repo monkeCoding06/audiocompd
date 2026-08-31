@@ -32,6 +32,11 @@ runs:
       run: |
         set -euo pipefail
 
+        git_was_missing=false
+        if ! command -v git >/dev/null 2>&1; then
+          git_was_missing=true
+        fi
+
         add_tool() {
           local command_name="$1"
           local package_name="$2"
@@ -59,6 +64,24 @@ runs:
         add_tool zip info-zip.org/zip
         add_tool unzip info-zip.org/unzip
         add_tool pkg-config freedesktop.org/pkg-config
+
+        if [[ "$git_was_missing" == "true" ]]; then
+          git_library_path="$(
+            pkgx --quiet +git-scm.org -- \
+              /bin/sh -c 'printf %s "${LD_LIBRARY_PATH-}"'
+          )"
+
+          if [[ -z "$git_library_path" ]]; then
+            echo "::error::pkgx did not provide Git's runtime library path"
+            exit 1
+          fi
+
+          if [[ -n "${LD_LIBRARY_PATH-}" ]]; then
+            git_library_path="$git_library_path:$LD_LIBRARY_PATH"
+          fi
+
+          echo "LD_LIBRARY_PATH=$git_library_path" >> "$GITHUB_ENV"
+        fi
 
     - name: Verify host tools
       shell: bash
