@@ -11,3 +11,4 @@
 !/schema/**
 !/src/**
 !/tests/**
+!vcpkg.json
