@@ -33,6 +33,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check whether Git is available
+        id: git
+        run: |
+          if command -v git >/dev/null 2>&1; then
+            echo "install=false" >> "$GITHUB_OUTPUT"
+            git --version
+          else
+            echo "install=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install Git
+        if: steps.git.outputs.install == 'true'
+        uses: pkgxdev/setup@4d4ae97af87ccb39ab8be4e073dea697fef2c6f7
+        with:
+          +: git
+
       - name: Restore dependency cache
         uses: actions/cache@v4
         with:
@@ -45,7 +61,7 @@ jobs:
         run: |
           missing=0
 
-          for tool in cmake make gcc g++; do
+          for tool in cmake make gcc g++ git; do
             if command -v "$tool" >/dev/null 2>&1; then
               echo "$tool: $(command -v "$tool")"
             else
@@ -93,6 +109,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check whether Git is available
+        id: git
+        run: |
+          if command -v git >/dev/null 2>&1; then
+            echo "install=false" >> "$GITHUB_OUTPUT"
+            git --version
+          else
+            echo "install=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install Git
+        if: steps.git.outputs.install == 'true'
+        uses: pkgxdev/setup@4d4ae97af87ccb39ab8be4e073dea697fef2c6f7
+        with:
+          +: git
+
       - name: Restore dependency cache
         uses: actions/cache@v4
         with:
@@ -105,7 +137,7 @@ jobs:
         run: |
           missing=0
 
-          for tool in cmake make gcc g++ clang-tidy run-clang-tidy; do
+          for tool in cmake make gcc g++ git clang-tidy run-clang-tidy; do
             if command -v "$tool" >/dev/null 2>&1; then
               echo "$tool: $(command -v "$tool")"
             else
@@ -156,6 +188,22 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Check whether Git is available
+        id: git
+        run: |
+          if command -v git >/dev/null 2>&1; then
+            echo "install=false" >> "$GITHUB_OUTPUT"
+            git --version
+          else
+            echo "install=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install Git
+        if: steps.git.outputs.install == 'true'
+        uses: pkgxdev/setup@4d4ae97af87ccb39ab8be4e073dea697fef2c6f7
+        with:
+          +: git
 
       - name: Restore dependency cache
         uses: actions/cache@v4
@@ -214,7 +262,7 @@ jobs:
         run: |
           missing=0
 
-          for tool in cmake cpack make gcc g++ rpmbuild; do
+          for tool in cmake cpack make gcc g++ git rpmbuild dpkg-deb; do
             if command -v "$tool" >/dev/null 2>&1; then
               echo "$tool: $(command -v "$tool")"
             else
@@ -288,4 +336,3 @@ jobs:
             build/packages/SHA256SUMS
           generate_release_notes: true
           fail_on_unmatched_files: true
-
