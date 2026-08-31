@@ -25,7 +25,16 @@ struct JackConfig {
     std::vector<std::string> outputPorts;
 };
 
-using BackendConfig = std::variant<AlsaConfig, JackConfig>;
+struct PipeWireConfig {
+    std::string nodeName;
+    std::string nodeDescription;
+    std::string targetSink;
+    std::uint32_t sampleRate{};
+    std::size_t channels{};
+    std::size_t quantum{};
+};
+
+using BackendConfig = std::variant<AlsaConfig, JackConfig, PipeWireConfig>;
 
 struct CompressorConfig {
     bool enabled{};
@@ -49,4 +58,3 @@ struct AppConfig {
 };
 
 } // namespace audiocompd
-

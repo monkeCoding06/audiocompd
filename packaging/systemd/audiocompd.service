@@ -1,13 +1,12 @@
 [Unit]
 Description=audiocompd real-time audio compressor
-After=sound.target
+Requires=pipewire.service
+After=pipewire.service wireplumber.service
+Wants=wireplumber.service
 ConditionPathExists=/etc/audiocompd/audiocompd.xml
 
 [Service]
 Type=simple
-User=audiocompd
-Group=audiocompd
-SupplementaryGroups=audio
 ExecStart=/usr/bin/audiocompd --config /etc/audiocompd/audiocompd.xml --schema /usr/share/audiocompd/audiocompd.xsd
 Restart=on-failure
 RestartSec=2
@@ -15,7 +14,6 @@ TimeoutStopSec=10
 
 NoNewPrivileges=true
 PrivateTmp=true
-ProtectHome=true
 ProtectSystem=strict
 ProtectKernelTunables=true
 ProtectKernelModules=true
@@ -24,5 +22,4 @@ LockPersonality=true
 RestrictAddressFamilies=AF_UNIX
 
 [Install]
-WantedBy=multi-user.target
-
+WantedBy=default.target

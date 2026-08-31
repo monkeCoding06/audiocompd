@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<audiocompd xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:noNamespaceSchemaLocation="../schema/audiocompd.xsd">
+    <audio>
+        <backend>
+            <alsa>
+                <inputDevice>default</inputDevice>
+                <outputDevice>default</outputDevice>
+                <sampleRate>48000</sampleRate>
+                <channels>2</channels>
+                <periodFrames>256</periodFrames>
+                <periods>4</periods>
+            </alsa>
+        </backend>
+    </audio>
+
+    <compressor enabled="true">
+        <thresholdDb>-18.0</thresholdDb>
+        <ratio>4.0</ratio>
+        <attackMs>10.0</attackMs>
+        <releaseMs>100.0</releaseMs>
+        <kneeDb>6.0</kneeDb>
+        <makeupGainDb>0.0</makeupGainDb>
+    </compressor>
+
+    <logging>
+        <level>info</level>
+    </logging>
+</audiocompd>

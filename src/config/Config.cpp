@@ -27,7 +27,6 @@ struct XmlCharDeleter {
 
 using XmlCharPtr = std::unique_ptr<xmlChar, XmlCharDeleter>;
 
-
 bool isElement(const xmlNode* node, const char* name) {
     return node != nullptr && node->type == XML_ELEMENT_NODE &&
            xmlStrEqual(node->name, BAD_CAST name) != 0;
@@ -158,6 +157,18 @@ BackendConfig parseBackend(xmlNode* audioNode) {
         config.autoConnect = parseBool(textOf(selected, "autoConnect"), "autoConnect");
         config.inputPorts = collectText(selected, "inputPort");
         config.outputPorts = collectText(selected, "outputPort");
+        return config;
+    }
+
+    if (isElement(selected, "pipewire")) {
+        PipeWireConfig config;
+        config.nodeName = textOf(selected, "nodeName");
+        config.nodeDescription = textOf(selected, "nodeDescription");
+        config.targetSink = textOf(selected, "targetSink");
+        config.sampleRate = static_cast<std::uint32_t>(
+            parseSize(textOf(selected, "sampleRate"), "sampleRate"));
+        config.channels = parseSize(textOf(selected, "channels"), "channels");
+        config.quantum = parseSize(textOf(selected, "quantum"), "quantum");
         return config;
     }
 

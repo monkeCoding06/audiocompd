@@ -4,6 +4,7 @@ project(audiocompd VERSION 0.1.0 LANGUAGES CXX)
 
 option(AUDIOCOMPD_WITH_ALSA "Build the ALSA backend" ON)
 option(AUDIOCOMPD_WITH_JACK "Build the JACK backend" ON)
+option(AUDIOCOMPD_WITH_PIPEWIRE "Build the PipeWire virtual-sink backend" ON)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -30,8 +31,14 @@ set(AUDIOCOMPD_SOURCES
 
 set(AUDIOCOMPD_BACKEND_LIBRARIES "")
 
-if(AUDIOCOMPD_WITH_ALSA OR AUDIOCOMPD_WITH_JACK)
+if(AUDIOCOMPD_WITH_ALSA OR AUDIOCOMPD_WITH_JACK OR AUDIOCOMPD_WITH_PIPEWIRE)
     find_package(PkgConfig REQUIRED)
+endif()
+
+if(AUDIOCOMPD_WITH_PIPEWIRE)
+    pkg_check_modules(PIPEWIRE REQUIRED IMPORTED_TARGET libpipewire-0.3)
+    list(APPEND AUDIOCOMPD_SOURCES src/audio/backends/pipewire/PipeWireBackend.cpp)
+    list(APPEND AUDIOCOMPD_BACKEND_LIBRARIES PkgConfig::PIPEWIRE)
 endif()
 
 if(AUDIOCOMPD_WITH_ALSA)
@@ -57,6 +64,7 @@ function(configure_audiocompd_target target)
         AUDIOCOMPD_VERSION="${PROJECT_VERSION}"
         $<$<BOOL:${AUDIOCOMPD_WITH_ALSA}>:AUDIOCOMPD_WITH_ALSA>
         $<$<BOOL:${AUDIOCOMPD_WITH_JACK}>:AUDIOCOMPD_WITH_JACK>
+        $<$<BOOL:${AUDIOCOMPD_WITH_PIPEWIRE}>:AUDIOCOMPD_WITH_PIPEWIRE>
     )
     audiocompd_enable_warnings(${target})
 endfunction()
@@ -87,8 +95,8 @@ set(AUDIOCOMPD_CONFIG_INSTALL_DIR "/etc/audiocompd" CACHE PATH
     "Installation directory for the audiocompd configuration")
 set(AUDIOCOMPD_SCHEMA_INSTALL_DIR "/usr/share/audiocompd" CACHE PATH
     "Installation directory for the audiocompd XSD")
-set(AUDIOCOMPD_SYSTEMD_INSTALL_DIR "/usr/lib/systemd/system" CACHE PATH
-    "Installation directory for the systemd unit")
+set(AUDIOCOMPD_SYSTEMD_INSTALL_DIR "/usr/lib/systemd/user" CACHE PATH
+    "Installation directory for the systemd user unit")
 
 install(FILES config/audiocompd.xml DESTINATION ${AUDIOCOMPD_CONFIG_INSTALL_DIR})
 install(FILES schema/audiocompd.xsd DESTINATION ${AUDIOCOMPD_SCHEMA_INSTALL_DIR})

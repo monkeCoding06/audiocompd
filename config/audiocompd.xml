@@ -3,22 +3,22 @@
              xsi:noNamespaceSchemaLocation="/usr/share/audiocompd/audiocompd.xsd">
     <audio>
         <backend>
-            <alsa>
-                <inputDevice>default</inputDevice>
-                <outputDevice>default</outputDevice>
+            <pipewire>
+                <nodeName>audiocompd</nodeName>
+                <nodeDescription>audiocompd Compressed Output</nodeDescription>
+                <targetSink>alsa_output.pci-0000_0a_00.4.analog-stereo</targetSink>
                 <sampleRate>48000</sampleRate>
                 <channels>2</channels>
-                <periodFrames>256</periodFrames>
-                <periods>4</periods>
-            </alsa>
+                <quantum>256</quantum>
+            </pipewire>
         </backend>
     </audio>
 
     <compressor enabled="true">
-        <thresholdDb>-18.0</thresholdDb>
-        <ratio>4.0</ratio>
-        <attackMs>10.0</attackMs>
-        <releaseMs>100.0</releaseMs>
+        <thresholdDb>-24.0</thresholdDb>
+        <ratio>20.0</ratio>
+        <attackMs>1.0</attackMs>
+        <releaseMs>333.0</releaseMs>
         <kneeDb>6.0</kneeDb>
         <makeupGainDb>0.0</makeupGainDb>
     </compressor>
@@ -27,4 +27,3 @@
         <level>info</level>
     </logging>
 </audiocompd>
-

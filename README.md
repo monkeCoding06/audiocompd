@@ -1,10 +1,10 @@
 # audiocompd
 
 `audiocompd` is a Linux real-time audio compressor designed to run as a
-systemd service. Its DSP core is independent of the audio server. The first
-version includes native ALSA and JACK backends; additional backends can be
-added by implementing `AudioBackend` and registering it in
-`AudioBackendFactory`.
+systemd user service. Its PipeWire backend appears to desktop applications as
+a virtual output device, compresses everything routed to it, and sends the
+result to a configured physical output. The DSP core remains independent of
+the audio server, and native ALSA and JACK backends are also available.
 
 The project intentionally produces two executables:
 
@@ -13,6 +13,9 @@ The project intentionally produces two executables:
 
 ## Current features
 
+- PipeWire virtual sink for system-wide desktop playback compression
+- Explicit PipeWire target sink, preventing the processed stream from feeding
+  back into the virtual sink
 - ALSA full-duplex capture and playback
 - JACK client with optional physical-port auto-connect
 - Stereo-linked soft-knee compressor
@@ -31,12 +34,13 @@ The project intentionally produces two executables:
 - pkg-config
 - ALSA development files when `AUDIOCOMPD_WITH_ALSA=ON`
 - JACK development files when `AUDIOCOMPD_WITH_JACK=ON`
+- PipeWire development files when `AUDIOCOMPD_WITH_PIPEWIRE=ON`
 
 On Debian or Ubuntu the development packages are commonly installed with:
 
 ```bash
 sudo apt install build-essential cmake ninja-build pkg-config \
-    libxml2-dev libasound2-dev libjack-jackd2-dev
+    libxml2-dev libasound2-dev libjack-jackd2-dev libpipewire-0.3-dev
 ```
 
 ## Build and test
@@ -52,7 +56,8 @@ Backends can be disabled independently:
 ```bash
 cmake -S . -B build -G Ninja \
     -DAUDIOCOMPD_WITH_ALSA=ON \
-    -DAUDIOCOMPD_WITH_JACK=OFF
+    -DAUDIOCOMPD_WITH_JACK=OFF \
+    -DAUDIOCOMPD_WITH_PIPEWIRE=ON
 ```
 
 Disabling a backend removes its external dependency. At least one usable
@@ -69,7 +74,7 @@ Validate the example configuration without opening an audio device:
     --validate-config
 ```
 
-Run with the ALSA example:
+Run with the PipeWire virtual-sink example:
 
 ```bash
 ./build/audiocompd \
@@ -77,9 +82,24 @@ Run with the ALSA example:
     --schema schema/audiocompd.xsd
 ```
 
-The default ALSA device can itself be provided by PipeWire or PulseAudio via
-the system's ALSA plugin configuration. PipeWire's JACK compatibility can also
-be used through the native JACK backend.
+While it is running, `wpctl status` should show an output named
+`audiocompd Compressed Output`. Make it the default output using its numeric
+sink ID:
+
+```bash
+wpctl set-default SINK_ID
+```
+
+On older WirePlumber versions that refuse to select a virtual node, use the
+PipeWire PulseAudio compatibility command instead:
+
+```bash
+pactl set-default-sink audiocompd
+```
+
+Restart or move any already-running playback streams after changing the
+default. New PipeWire and PulseAudio-compatible applications will then play
+through the compressor.
 
 ## Configuration
 
@@ -91,6 +111,34 @@ The standard installed paths are:
 /etc/audiocompd/audiocompd.xml
 /usr/share/audiocompd/audiocompd.xsd
 ```
+
+### PipeWire
+
+```xml
+<backend>
+    <pipewire>
+        <nodeName>audiocompd</nodeName>
+        <nodeDescription>audiocompd Compressed Output</nodeDescription>
+        <targetSink>alsa_output.pci-0000_0a_00.4.analog-stereo</targetSink>
+        <sampleRate>48000</sampleRate>
+        <channels>2</channels>
+        <quantum>256</quantum>
+    </pipewire>
+</backend>
+```
+
+`targetSink` must be the `node.name` of the real hardware output, not the
+virtual audiocompd sink. Find it with:
+
+```bash
+wpctl status
+wpctl inspect SINK_ID | rg 'node.name|node.description|media.class'
+```
+
+The included configuration targets the Matisse analog output shown above.
+Change it when using the project on another machine. The PipeWire backend
+currently accepts one or two channels and uses interleaved 32-bit float audio
+at its PipeWire boundary.
 
 ### ALSA
 
@@ -158,41 +206,44 @@ independently.
 Logs always go to stderr. Under systemd they can be viewed with:
 
 ```bash
-journalctl -u audiocompd
+journalctl --user -u audiocompd
 ```
 
 An optional `<filePath>` after `<level>` additionally writes the same messages
 to a file. File logging should normally be left disabled for the systemd
 service.
 
-## Install as a system service
+## Install as a systemd user service
 
 ```bash
 sudo cmake --install build --prefix /usr
-sudo useradd --system --no-create-home --shell /usr/sbin/nologin audiocompd
-sudo usermod -aG audio audiocompd
-sudo systemctl daemon-reload
-sudo systemctl enable --now audiocompd
+systemctl --user daemon-reload
+systemctl --user enable --now audiocompd
 ```
 
 Check its state and logs:
 
 ```bash
-systemctl status audiocompd
-journalctl -u audiocompd -f
+systemctl --user status audiocompd
+journalctl --user -u audiocompd -f
 ```
 
-ALSA is the simplest backend for a system-level service. JACK or a native
-PipeWire backend must be able to reach the audio-server socket belonging to the
-service user. This is a deployment concern and does not change the DSP or audio
-engine.
+The service is intentionally a user unit: PipeWire and WirePlumber normally
+run in the logged-in user's session, and their socket lives below that user's
+runtime directory. A system service running as a separate `audiocompd` account
+would not naturally share that audio graph.
+
+This covers applications routed through PipeWire, including its PulseAudio and
+JACK compatibility layers. A program that opens an ALSA `hw:` device directly
+bypasses the PipeWire graph and therefore cannot be intercepted by the virtual
+sink.
 
 ## Source layout
 
 ```text
 src/application    service lifecycle
 src/audio          backend-neutral audio engine and factory
-src/audio/backends ALSA and JACK adapters
+src/audio/backends ALSA, JACK, and PipeWire adapters
 src/compressor     real-time DSP
 src/config         XML/XSD-backed typed configuration
 src/logging        project logger
@@ -203,4 +254,3 @@ tests              hardware-independent unit tests
 No logging, allocation, file access, or locking occurs inside the successful
 real-time processing path. Buffer storage is allocated before processing
 begins.
-

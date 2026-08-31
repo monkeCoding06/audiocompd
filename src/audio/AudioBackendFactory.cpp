@@ -6,6 +6,9 @@
 #ifdef AUDIOCOMPD_WITH_JACK
 #include "audio/backends/jack/JackBackend.hpp"
 #endif
+#ifdef AUDIOCOMPD_WITH_PIPEWIRE
+#include "audio/backends/pipewire/PipeWireBackend.hpp"
+#endif
 
 #include <stdexcept>
 #include <type_traits>
@@ -30,10 +33,15 @@ std::unique_ptr<AudioBackend> AudioBackendFactory::create(const BackendConfig& c
 #else
                 throw std::runtime_error("The JACK backend was not compiled into audiocompd");
 #endif
+            } else if constexpr (std::is_same_v<ConfigType, PipeWireConfig>) {
+#ifdef AUDIOCOMPD_WITH_PIPEWIRE
+                return std::make_unique<PipeWireBackend>(backendConfig);
+#else
+                throw std::runtime_error("The PipeWire backend was not compiled into audiocompd");
+#endif
             }
         },
         config);
 }
 
 } // namespace audiocompd
-
