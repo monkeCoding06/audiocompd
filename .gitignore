@@ -13,3 +13,4 @@
 !/tests/**
 !vcpkg.json
 !/.github/**
+!/branding/**
