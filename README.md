@@ -1,4 +1,4 @@
-# <img src="branding/audiocompd.png" alt="audiocompd logo" width="56" align="center"> audiocompd
+# <img src="branding/audiocompd.png" alt="audiocompd logo" width="100" align="center">
 
 `audiocompd` is a Linux real-time audio compressor designed to run as a
 systemd user service. Its PipeWire backend appears to desktop applications as
