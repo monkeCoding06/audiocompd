@@ -13,7 +13,7 @@ class Application {
 public:
     explicit Application(const Config& config);
 
-    int run(SignalHandler& signalHandler);
+    int run(SignalHandler& signalHandler, bool visualize = false);
 
 private:
     std::unique_ptr<AudioBackend> backend_;
@@ -21,4 +21,3 @@ private:
 };
 
 } // namespace audiocompd
-

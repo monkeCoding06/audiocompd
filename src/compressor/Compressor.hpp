@@ -12,13 +12,14 @@ public:
 
     void process(AudioBlock block) noexcept;
     void reset() noexcept;
+    float lastReductionDb() const noexcept { return lastReductionDb_; }
 
 private:
     float gainReductionDb(float levelDb) const noexcept;
 
     CompressorConfig config_;
     EnvelopeFollower envelope_;
+    float lastReductionDb_{};
 };
 
 } // namespace audiocompd
-

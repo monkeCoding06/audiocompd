@@ -15,6 +15,7 @@ struct Arguments {
     std::string configPath{"/etc/audiocompd/audiocompd.xml"};
     std::string schemaPath{"/usr/share/audiocompd/audiocompd.xsd"};
     bool validateOnly{};
+    bool visualize{};
 };
 
 void printHelp() {
@@ -23,6 +24,7 @@ void printHelp() {
         << "  --config PATH       XML configuration path\n"
         << "  --schema PATH       XSD schema path\n"
         << "  --validate-config   Validate configuration and exit\n"
+        << "  --visualize         Show live input, output and gain reduction meters\n"
         << "  --version           Print version and exit\n"
         << "  --help              Show this help\n";
 }
@@ -43,6 +45,8 @@ Arguments parseArguments(int argc, char** argv) {
             }
         } else if (argument == "--validate-config") {
             arguments.validateOnly = true;
+        } else if (argument == "--visualize") {
+            arguments.visualize = true;
         } else if (argument == "--version") {
             std::cout << "audiocompd " << AUDIOCOMPD_VERSION << '\n';
             std::exit(0);
@@ -76,7 +80,7 @@ int main(int argc, char** argv) {
         // Signals are blocked before the audio backend creates real-time threads.
         audiocompd::SignalHandler signalHandler;
         audiocompd::Application application(config);
-        return application.run(signalHandler);
+        return application.run(signalHandler, arguments.visualize);
     } catch (const std::exception& exception) {
         AUDIOCOMPD_LOG_CRITICAL(exception.what());
         return 1;

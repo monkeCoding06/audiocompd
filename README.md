@@ -254,4 +254,7 @@ tests              hardware-independent unit tests
 No logging, allocation, file access, or locking occurs inside the successful
 real-time processing path. Buffer storage is allocated before processing
 begins.
+# Live terminal meters
+
+Run `audiocompd --visualize --config /path/to/audiocompd.xml --schema /path/to/audiocompd.xsd` in a terminal to see live input and output peak levels in dBFS and compressor gain reduction in dB. Press Ctrl+C to stop. The display updates about 20 times per second; each reading is the maximum across channels since the previous update. Without `--visualize`, audio processing runs without meter collection.
 
