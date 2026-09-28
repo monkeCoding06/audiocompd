@@ -2,6 +2,7 @@
 #include "config/Config.hpp"
 #include "logging/Logger.hpp"
 #include "runtime/SignalHandler.hpp"
+#include "runtime/MeterSocket.hpp"
 
 #include <exception>
 #include <cstdlib>
@@ -15,6 +16,7 @@ struct Arguments {
     std::string configPath{"/etc/audiocompd/audiocompd.xml"};
     std::string schemaPath{"/usr/share/audiocompd/audiocompd.xsd"};
     bool validateOnly{};
+    bool visualize{};
 };
 
 void printHelp() {
@@ -23,6 +25,7 @@ void printHelp() {
         << "  --config PATH       XML configuration path\n"
         << "  --schema PATH       XSD schema path\n"
         << "  --validate-config   Validate configuration and exit\n"
+        << "  --visualize         Connect to the running service's live meters\n"
         << "  --version           Print version and exit\n"
         << "  --help              Show this help\n";
 }
@@ -43,6 +46,8 @@ Arguments parseArguments(int argc, char** argv) {
             }
         } else if (argument == "--validate-config") {
             arguments.validateOnly = true;
+        } else if (argument == "--visualize") {
+            arguments.visualize = true;
         } else if (argument == "--version") {
             std::cout << "audiocompd " << AUDIOCOMPD_VERSION << '\n';
             std::exit(0);
@@ -61,6 +66,7 @@ Arguments parseArguments(int argc, char** argv) {
 int main(int argc, char** argv) {
     try {
         const Arguments arguments = parseArguments(argc, argv);
+        if (arguments.visualize) return audiocompd::runMeterClient();
         const audiocompd::Config config =
             audiocompd::Config::load(arguments.configPath, arguments.schemaPath);
 

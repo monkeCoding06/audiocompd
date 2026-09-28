@@ -199,7 +199,7 @@ jobs:
 
     if: >-
       github.ref_type == 'tag' ||
-      (github.event_name == 'push' && github.ref_name == 'main') ||
+      (github.event_name == 'push') ||
       (github.event_name == 'workflow_dispatch' && inputs.build_packages)
 
     runs-on: [self-hosted, Linux, X64]

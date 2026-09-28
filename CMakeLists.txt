@@ -27,7 +27,7 @@ if(AUDIOCOMPD_FETCH_DEPENDENCIES)
         "Only install dependencies for enabled audiocompd backends" FORCE)
 endif()
 
-project(audiocompd VERSION 0.1.0 LANGUAGES CXX)
+project(audiocompd VERSION 0.1.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -50,6 +50,7 @@ set(AUDIOCOMPD_SOURCES
     src/config/Config.cpp
     src/logging/Logger.cpp
     src/runtime/SignalHandler.cpp
+    src/runtime/MeterSocket.cpp
 )
 
 set(AUDIOCOMPD_BACKEND_LIBRARIES "")
@@ -192,4 +193,3 @@ set(CPACK_RPM_USER_FILELIST
     "%config(noreplace) /etc/audiocompd/audiocompd.xml")
 
 include(CPack)
-

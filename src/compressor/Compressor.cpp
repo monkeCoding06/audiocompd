@@ -24,6 +24,7 @@ Compressor::Compressor(const CompressorConfig& config, const AudioFormat& format
 }
 
 void Compressor::process(AudioBlock block) noexcept {
+    lastReductionDb_ = 0.0F;
     if (!config_.enabled || block.channels == nullptr || block.channelCount == 0) {
         return;
     }
@@ -35,7 +36,9 @@ void Compressor::process(AudioBlock block) noexcept {
         }
 
         const float levelDb = linearToDb(envelope_.process(peak));
-        const float gain = dbToLinear(gainReductionDb(levelDb) + config_.makeupGainDb);
+        const float reduction = gainReductionDb(levelDb);
+        lastReductionDb_ = std::min(lastReductionDb_, reduction);
+        const float gain = dbToLinear(reduction + config_.makeupGainDb);
 
         for (std::size_t channel = 0; channel < block.channelCount; ++channel) {
             block.channels[channel][frame] *= gain;
@@ -45,6 +48,7 @@ void Compressor::process(AudioBlock block) noexcept {
 
 void Compressor::reset() noexcept {
     envelope_.reset();
+    lastReductionDb_ = 0.0F;
 }
 
 float Compressor::gainReductionDb(float levelDb) const noexcept {
@@ -68,4 +72,3 @@ float Compressor::gainReductionDb(float levelDb) const noexcept {
 }
 
 } // namespace audiocompd
-

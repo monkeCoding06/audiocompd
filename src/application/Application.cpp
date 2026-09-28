@@ -2,8 +2,7 @@
 
 #include "audio/AudioBackendFactory.hpp"
 #include "logging/Logger.hpp"
-
-#include <csignal>
+#include "runtime/MeterSocket.hpp"
 
 namespace audiocompd {
 
@@ -17,6 +16,8 @@ int Application::run(SignalHandler& signalHandler) {
                        " Hz, ", format.channels, " channel(s), ",
                        format.framesPerBuffer, " frames per buffer");
 
+    MeterServer meters(*engine_);
+    meters.start();
     engine_->start();
     AUDIOCOMPD_LOG_INFO("audiocompd is running");
 
@@ -25,11 +26,13 @@ int Application::run(SignalHandler& signalHandler) {
         signal = signalHandler.wait();
     } catch (...) {
         engine_->stop();
+        meters.stop();
         throw;
     }
     AUDIOCOMPD_LOG_INFO("Received signal ", signal, "; stopping audiocompd");
 
     engine_->stop();
+    meters.stop();
 
     if (backend_->failed()) {
         AUDIOCOMPD_LOG_ERROR("Audio backend failed: ", backend_->failureMessage());
