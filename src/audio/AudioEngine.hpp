@@ -15,7 +15,7 @@ public:
     void stop() noexcept;
     struct Levels { float input; float output; float reductionDb; };
     Levels takeLevels() noexcept;
-    void enableMeters() noexcept { metersEnabled_.store(true, std::memory_order_relaxed); }
+    void enableMeters(bool enabled) noexcept { metersEnabled_.store(enabled, std::memory_order_relaxed); }
 
 private:
     void process(AudioBlock block) noexcept;

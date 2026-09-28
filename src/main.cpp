@@ -2,6 +2,7 @@
 #include "config/Config.hpp"
 #include "logging/Logger.hpp"
 #include "runtime/SignalHandler.hpp"
+#include "runtime/MeterSocket.hpp"
 
 #include <exception>
 #include <cstdlib>
@@ -24,7 +25,7 @@ void printHelp() {
         << "  --config PATH       XML configuration path\n"
         << "  --schema PATH       XSD schema path\n"
         << "  --validate-config   Validate configuration and exit\n"
-        << "  --visualize         Show live input, output and gain reduction meters\n"
+        << "  --visualize         Connect to the running service's live meters\n"
         << "  --version           Print version and exit\n"
         << "  --help              Show this help\n";
 }
@@ -65,6 +66,7 @@ Arguments parseArguments(int argc, char** argv) {
 int main(int argc, char** argv) {
     try {
         const Arguments arguments = parseArguments(argc, argv);
+        if (arguments.visualize) return audiocompd::runMeterClient();
         const audiocompd::Config config =
             audiocompd::Config::load(arguments.configPath, arguments.schemaPath);
 
@@ -80,7 +82,7 @@ int main(int argc, char** argv) {
         // Signals are blocked before the audio backend creates real-time threads.
         audiocompd::SignalHandler signalHandler;
         audiocompd::Application application(config);
-        return application.run(signalHandler, arguments.visualize);
+        return application.run(signalHandler);
     } catch (const std::exception& exception) {
         AUDIOCOMPD_LOG_CRITICAL(exception.what());
         return 1;

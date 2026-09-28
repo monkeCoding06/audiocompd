@@ -50,6 +50,7 @@ set(AUDIOCOMPD_SOURCES
     src/config/Config.cpp
     src/logging/Logger.cpp
     src/runtime/SignalHandler.cpp
+    src/runtime/MeterSocket.cpp
 )
 
 set(AUDIOCOMPD_BACKEND_LIBRARIES "")
@@ -192,4 +193,3 @@ set(CPACK_RPM_USER_FILELIST
     "%config(noreplace) /etc/audiocompd/audiocompd.xml")
 
 include(CPack)
-

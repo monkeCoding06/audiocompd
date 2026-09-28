@@ -256,5 +256,4 @@ real-time processing path. Buffer storage is allocated before processing
 begins.
 # Live terminal meters
 
-Run `audiocompd --visualize --config /path/to/audiocompd.xml --schema /path/to/audiocompd.xsd` in a terminal to see live input and output peak levels in dBFS and compressor gain reduction in dB. Press Ctrl+C to stop. The display updates about 20 times per second; each reading is the maximum across channels since the previous update. Without `--visualize`, audio processing runs without meter collection.
-
+Start audiocompd normally (for example, `systemctl --user start audiocompd`), then run `audiocompd --visualize` in another terminal. The viewer connects to the running service through a per-user Unix socket; it does not open another audio device or need the XML config. Press Ctrl+C to close the viewer without stopping the service. The display updates about 20 times per second and shows peak input/output levels in dBFS and maximum gain reduction in dB across channels since the previous update. Meter collection is enabled only while a viewer is connected. Run the viewer as the same user as the service; `sudo` changes the user and will not connect.
